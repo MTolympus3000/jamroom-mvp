@@ -1,21 +1,15 @@
 # JamRoom MVP
 
-A collaborative loop-building app prototype for asynchronous jam sessions.
+Collaborative loop/jam app prototype with:
 
-## Current features
-
-- Global project settings: title, BPM, bars, key, mode, chord density
-- One-finger chord player
-- Mode selector: Ionian, Dorian, Phrygian, Lydian, Mixolydian, Aeolian, Locrian
-- Density selector: dyad, triad, tetrad, pentad, hexad, heptad
-- Piano roll grid with manual note entry, delete, and quantize
-- Drum pads and 32-step drum sequencer
-- Copy first 2 drum bars across the loop
-- Audio recording from microphone
-- Import audio files such as WAV/MP3
-- DAW-style waveform timeline with start-beat sliders
-- Track mute, delete, volume, and master volume
-- Local project save for MIDI/drum settings
+- Global transport: play, stop, record, BPM, loop bars, quantize strength, quantize grid, swing, metronome
+- Drum machine screen: MIDI grid on top, playable pads on bottom
+- Drum pad recording into a MIDI-style sequencer
+- One-finger chord generator with key, mode, and density selector
+- Piano roll note viewer/editor controls
+- Audio timeline with visible waveform-style clips
+- WAV/audio import placeholder using browser file picker
+- Organized React/Vite structure for future development
 
 ## Run locally
 
@@ -24,7 +18,9 @@ npm install
 npm run dev
 ```
 
-## Build for Netlify
+## Deploy on Netlify
+
+Build command:
 
 ```bash
 npm run build
@@ -32,27 +28,6 @@ npm run build
 
 Publish directory:
 
-```text
+```bash
 dist
 ```
-
-## Planned architecture
-
-Future folders should stay organized like this:
-
-```text
-src/
-  components/       reusable UI components
-  lib/              audio engine, theory engine, storage helpers
-  data/             music constants, presets, sample metadata
-  styles/           CSS modules or global styles
-```
-
-## Future cloud features
-
-- Supabase login
-- Jam room invite links
-- Audio upload to Supabase Storage
-- Project database sync
-- Comments per layer
-- Export WAV/MIDI/stems
