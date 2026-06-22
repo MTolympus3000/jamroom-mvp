@@ -69,3 +69,75 @@ button,input,select{font:inherit}button{border:0;color:inherit}
 }
 .bottomArea .mpcOnly { grid-template-columns:repeat(4,minmax(0,1fr)); grid-template-rows:repeat(4,minmax(0,1fr)); }
 .bottomArea .mpcPad { min-height:0 !important; display:flex !important; }
+
+/* Project save / load controls */
+.projectPanel {
+  grid-column: 1 / -1;
+  border: 1px solid rgba(141,92,255,.22);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(141,92,255,.16), transparent 42%),
+    rgba(18,16,28,.92);
+  border-radius: 16px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.projectPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.projectPanelHeader b {
+  font-size: 13px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.projectPanelHeader span {
+  font-size: 11px;
+  color: #a99eff;
+  font-weight: 800;
+}
+
+.projectActions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.projectActions button {
+  min-height: 42px;
+  border-radius: 12px;
+  background: #211b31;
+  border: 1px solid rgba(255,255,255,.1);
+  color: #ede8ff;
+  font-weight: 1000;
+  font-size: 12px;
+}
+
+.projectActions button:first-child {
+  background: linear-gradient(180deg, #8d5cff, #6e46e8);
+  color: #fff;
+}
+
+.projectActions button.danger {
+  color: #ff6a8c;
+  background: rgba(255,59,107,.08);
+  border-color: rgba(255,59,107,.22);
+}
+
+.projectPanel small {
+  color: #8f86a8;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+@media (min-width: 700px) {
+  .projectActions {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}

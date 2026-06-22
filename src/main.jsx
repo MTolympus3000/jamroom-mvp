@@ -42,6 +42,52 @@ const defaultPads = [
   { label:'User Sample', short:'USER\nSAMPLE', category:'USER', sample:'Empty', url:null, color:'gray', chokeGroup:0 },
 ];
 
+const PROJECT_STORAGE_KEY = 'jamroom.project.manual.v1';
+const AUTOSAVE_STORAGE_KEY = 'jamroom.project.autosave.v1';
+
+function ProjectControls({ project }) {
+  const fileInputRef = useRef(null);
+
+  return (
+    <section className="projectPanel">
+      <div className="projectPanelHeader">
+        <b>Project</b>
+        <span>{project.lastSaved ? `Saved ${project.lastSaved}` : 'Not saved yet'}</span>
+      </div>
+
+      <div className="projectActions">
+        <button onClick={project.saveProject}>Save</button>
+        <button onClick={project.loadProject}>Load</button>
+        <button onClick={project.exportProject}>Export JSON</button>
+
+        <button onClick={() => fileInputRef.current?.click()}>
+          Import JSON
+        </button>
+
+        <button className="danger" onClick={project.newProject}>
+          New Project
+        </button>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/json,.json"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) project.importProjectFile(file);
+          event.target.value = '';
+        }}
+      />
+
+      <small>
+        Autosave is on. Export JSON is the safest backup before big edits.
+      </small>
+    </section>
+  );
+}
+
 function useDrumAudio(pads, volume = 1, lowLatency = true, maxPolyphony = 32) {
   const ctxRef = useRef(null);
   const bufferMap = useRef(new Map());
@@ -564,27 +610,131 @@ function SamplesPage({ pads, setPads, selectedPad, setSelectedPad }) {
   </div>
 }
 
-function SettingsPage({ bpm,setBpm,loopBars,setLoopBars,quantize,setQuantize,swing,setSwing,metronome,setMetronome,lowLatency,setLowLatency,preloadKit,loadStatus,snapToGrid,setSnapToGrid,gridResolution,setGridResolution,countInBars,setCountInBars,followPlayhead,setFollowPlayhead,maxPolyphony,setMaxPolyphony,activeVoices,clearPattern,copyBar }) {
-  return <div className="settingsPage pageScroll">
-    <h2>Settings</h2>
-    <div className="settingsGrid">
-      <div className="bpmStepper"><span>BPM</span><button onClick={()=>setBpm(v=>Math.max(40, v-1))}>−</button><b>{bpm}</b><button onClick={()=>setBpm(v=>Math.min(240, v+1))}>+</button></div>
-      <label>Loop Bars<select value={loopBars} onChange={e=>setLoopBars(Number(e.target.value))}>{[1,2,4,8,16].map(x=><option key={x}>{x}</option>)}</select></label>
-      <label>Count-In<select value={countInBars} onChange={e=>setCountInBars(Number(e.target.value))}>{[0,1,2,4].map(x=><option key={x} value={x}>{x === 0 ? 'Off' : `${x} Bar${x>1?'s':''}`}</option>)}</select></label>
-      <label>Polyphony<select value={maxPolyphony} onChange={e=>setMaxPolyphony(Number(e.target.value))}>{[16,32,64].map(x=><option key={x} value={x}>{x} Voices</option>)}</select></label>
-      <div className="voiceMeter"><span>Voices</span><b>{activeVoices}/{maxPolyphony}</b><em style={{width:`${Math.min(100,(activeVoices/maxPolyphony)*100)}%`}} /></div>
-      <label>Grid<select value={gridResolution} onChange={e=>setGridResolution(e.target.value)}>{GRID_OPTIONS.map(g=><option key={g.label}>{g.label}</option>)}</select></label>
-      <label>Quantize Strength<input type="range" min="0" max="100" value={quantize} onChange={e=>setQuantize(Number(e.target.value))}/><b>{quantize}%</b></label>
-      <label>Swing<input type="range" min="50" max="75" value={swing} onChange={e=>setSwing(Number(e.target.value))}/><b>{swing}%</b></label>
-      <button className={snapToGrid?'toggle on':'toggle'} onClick={()=>setSnapToGrid(v=>!v)}>Snap To Grid {snapToGrid?'ON':'OFF'}</button>
-      <button className={followPlayhead?'toggle on':'toggle'} onClick={()=>setFollowPlayhead(v=>!v)}>Follow Playhead {followPlayhead?'ON':'OFF'}</button>
-      <button className={metronome?'toggle on':'toggle'} onClick={()=>setMetronome(v=>!v)}>Metronome {metronome?'ON':'OFF'}</button>
-      <button className={lowLatency?'toggle on':'toggle'} onClick={()=>setLowLatency(v=>!v)}>Low Latency {lowLatency?'ON':'OFF'}</button>
-      <button className="toggle" onClick={preloadKit}>Preload Kit · {loadStatus.loaded}/{loadStatus.total}</button>
-      <button className="toggle" onClick={copyBar}><Copy size={16}/> Copy Bar 1 To Loop</button>
-      <button className="toggle danger" onClick={clearPattern}><Trash2 size={16}/> Clear Pattern</button>
+function SettingsPage({
+  bpm,setBpm,
+  loopBars,setLoopBars,
+  quantize,setQuantize,
+  swing,setSwing,
+  metronome,setMetronome,
+  lowLatency,setLowLatency,
+  preloadKit,
+  loadStatus,
+  snapToGrid,setSnapToGrid,
+  gridResolution,setGridResolution,
+  countInBars,setCountInBars,
+  followPlayhead,setFollowPlayhead,
+  maxPolyphony,setMaxPolyphony,
+  activeVoices,
+  clearPattern,
+  copyBar,
+  project
+}) {
+  return (
+    <div className="settingsPage pageScroll">
+      <h2>Settings</h2>
+
+      <div className="settingsGrid">
+        <ProjectControls project={project} />
+
+        <div className="bpmStepper">
+          <span>BPM</span>
+          <button onClick={() => setBpm(v => Math.max(40, v - 1))}>−</button>
+          <b>{bpm}</b>
+          <button onClick={() => setBpm(v => Math.min(240, v + 1))}>+</button>
+        </div>
+
+        <label>
+          Loop Bars
+          <select value={loopBars} onChange={e => setLoopBars(Number(e.target.value))}>
+            {[1,2,4,8,16].map(x => <option key={x}>{x}</option>)}
+          </select>
+        </label>
+
+        <label>
+          Count-In
+          <select value={countInBars} onChange={e => setCountInBars(Number(e.target.value))}>
+            {[0,1,2,4].map(x => (
+              <option key={x} value={x}>
+                {x === 0 ? 'Off' : `${x} Bar${x > 1 ? 's' : ''}`}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Polyphony
+          <select value={maxPolyphony} onChange={e => setMaxPolyphony(Number(e.target.value))}>
+            {[16,32,64].map(x => <option key={x} value={x}>{x} Voices</option>)}
+          </select>
+        </label>
+
+        <div className="voiceMeter">
+          <span>Voices</span>
+          <b>{activeVoices}/{maxPolyphony}</b>
+          <em style={{ width: `${Math.min(100, (activeVoices / maxPolyphony) * 100)}%` }} />
+        </div>
+
+        <label>
+          Grid
+          <select value={gridResolution} onChange={e => setGridResolution(e.target.value)}>
+            {GRID_OPTIONS.map(g => <option key={g.label}>{g.label}</option>)}
+          </select>
+        </label>
+
+        <label>
+          Quantize Strength
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={quantize}
+            onChange={e => setQuantize(Number(e.target.value))}
+          />
+          <b>{quantize}%</b>
+        </label>
+
+        <label>
+          Swing
+          <input
+            type="range"
+            min="50"
+            max="75"
+            value={swing}
+            onChange={e => setSwing(Number(e.target.value))}
+          />
+          <b>{swing}%</b>
+        </label>
+
+        <button className={snapToGrid ? 'toggle on' : 'toggle'} onClick={() => setSnapToGrid(v => !v)}>
+          Snap To Grid {snapToGrid ? 'ON' : 'OFF'}
+        </button>
+
+        <button className={followPlayhead ? 'toggle on' : 'toggle'} onClick={() => setFollowPlayhead(v => !v)}>
+          Follow Playhead {followPlayhead ? 'ON' : 'OFF'}
+        </button>
+
+        <button className={metronome ? 'toggle on' : 'toggle'} onClick={() => setMetronome(v => !v)}>
+          Metronome {metronome ? 'ON' : 'OFF'}
+        </button>
+
+        <button className={lowLatency ? 'toggle on' : 'toggle'} onClick={() => setLowLatency(v => !v)}>
+          Low Latency {lowLatency ? 'ON' : 'OFF'}
+        </button>
+
+        <button className="toggle" onClick={preloadKit}>
+          Preload Kit · {loadStatus.loaded}/{loadStatus.total}
+        </button>
+
+        <button className="toggle" onClick={copyBar}>
+          <Copy size={16}/> Copy Bar 1 To Loop
+        </button>
+
+        <button className="toggle danger" onClick={clearPattern}>
+          <Trash2 size={16}/> Clear Pattern
+        </button>
+      </div>
     </div>
-  </div>
+  );
 }
 
 function App(){
@@ -611,6 +761,7 @@ function App(){
   const [maxPolyphony,setMaxPolyphony]=useState(32);
   const [muted,setMuted]=useState({});
   const [page,setPage]=useState('play');
+  const [lastSaved,setLastSaved]=useState('');
   const timer = useRef(null);
   const countTimer = useRef(null);
   const rafRef = useRef(null);
@@ -638,6 +789,228 @@ function App(){
       return next;
     });
   };
+
+  const cleanPatternForBars = (incomingPattern, bars) => {
+    const totalTicks = bars * TICKS_PER_BAR;
+  
+    return Array.from({ length: 16 }, (_, rowIndex) =>
+      Array.from({ length: totalTicks }, (_, tickIndex) =>
+        incomingPattern?.[rowIndex]?.[tickIndex] || 0
+      )
+    );
+  };
+  
+  const makeProjectSnapshot = () => ({
+    app: 'JamRoom Drum',
+    version: 1,
+    savedAt: new Date().toISOString(),
+  
+    bpm,
+    loopBars,
+    quantize,
+    swing,
+    metronome,
+    lowLatency,
+    countInBars,
+    gridResolution,
+    snapToGrid,
+    followPlayhead,
+    maxPolyphony,
+    selectedPad,
+  
+    muted,
+    pattern,
+    pads,
+  });
+  
+  const applyProjectSnapshot = (data) => {
+    if (!data || data.app !== 'JamRoom Drum') {
+      alert('This does not look like a JamRoom Drum project file.');
+      return;
+    }
+  
+    const nextBars = Number(data.loopBars || 4);
+    const nextPattern = cleanPatternForBars(data.pattern, nextBars);
+  
+    setBpm(Number(data.bpm || 120));
+    setLoopBars(nextBars);
+    setQuantize(Number(data.quantize ?? 100));
+    setSwing(Number(data.swing ?? 55));
+    setMetronome(Boolean(data.metronome ?? true));
+    setLowLatency(Boolean(data.lowLatency ?? true));
+    setCountInBars(Number(data.countInBars ?? 1));
+    setGridResolution(data.gridResolution || '1/16');
+    setSnapToGrid(Boolean(data.snapToGrid ?? true));
+    setFollowPlayhead(Boolean(data.followPlayhead ?? false));
+    setMaxPolyphony(Number(data.maxPolyphony || 32));
+    setSelectedPad(Number(data.selectedPad || 0));
+    setMuted(data.muted || {});
+  
+    setPads(() =>
+      defaultPads.map((basePad, index) => ({
+        volume: 1,
+        pan: 0,
+        tune: 0,
+        fine: 0,
+        attack: 0,
+        decay: 250,
+        release: 120,
+        voiceMode: 'poly',
+        mute: false,
+        solo: false,
+        filter: 0,
+        distortion: 0,
+        reverb: 0,
+        ...basePad,
+        ...(data.pads?.[index] || {}),
+      }))
+    );
+  
+    setPatternLive(nextPattern);
+    setEditingPad(null);
+    setPage('play');
+  };
+  
+  const saveProject = () => {
+    try {
+      localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(makeProjectSnapshot()));
+      const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      setLastSaved(time);
+      alert('Project saved.');
+    } catch (error) {
+      console.error(error);
+      alert('Save failed. Try exporting JSON instead.');
+    }
+  };
+  
+  const loadProject = () => {
+    try {
+      const raw =
+        localStorage.getItem(PROJECT_STORAGE_KEY) ||
+        localStorage.getItem(AUTOSAVE_STORAGE_KEY);
+  
+      if (!raw) {
+        alert('No saved project found yet.');
+        return;
+      }
+  
+      applyProjectSnapshot(JSON.parse(raw));
+      alert('Project loaded.');
+    } catch (error) {
+      console.error(error);
+      alert('Load failed. The saved project may be damaged.');
+    }
+  };
+  
+  const exportProject = () => {
+    try {
+      const snapshot = makeProjectSnapshot();
+      const json = JSON.stringify(snapshot, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+  
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `jamroom-project-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+  
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert('Export failed.');
+    }
+  };
+  
+  const importProjectFile = (file) => {
+    const reader = new FileReader();
+  
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(String(reader.result || '{}'));
+        applyProjectSnapshot(data);
+        localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(data));
+        const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        setLastSaved(time);
+        alert('Project imported.');
+      } catch (error) {
+        console.error(error);
+        alert('Import failed. Make sure this is a JamRoom project JSON file.');
+      }
+    };
+  
+    reader.readAsText(file);
+  };
+  
+  const newProject = () => {
+    const ok = window.confirm('Start a new project? This clears the current pattern.');
+    if (!ok) return;
+  
+    stop();
+    setBpm(120);
+    setLoopBars(4);
+    setQuantize(100);
+    setSwing(55);
+    setMetronome(true);
+    setLowLatency(true);
+    setCountInBars(1);
+    setGridResolution('1/16');
+    setSnapToGrid(true);
+    setFollowPlayhead(false);
+    setMaxPolyphony(32);
+    setSelectedPad(0);
+    setEditingPad(null);
+    setMuted({});
+    setPads(defaultPads.map(p => ({
+      volume: 1,
+      pan: 0,
+      tune: 0,
+      fine: 0,
+      attack: 0,
+      decay: 250,
+      release: 120,
+      voiceMode: 'poly',
+      mute: false,
+      solo: false,
+      filter: 0,
+      distortion: 0,
+      reverb: 0,
+      ...p,
+    })));
+    setPatternLive(makePattern(16, 4));
+    setPage('play');
+  };
+
+  useEffect(() => {
+    const autosaveTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(AUTOSAVE_STORAGE_KEY, JSON.stringify(makeProjectSnapshot()));
+      } catch (error) {
+        console.warn('Autosave failed:', error);
+      }
+    }, 700);
+  
+    return () => clearTimeout(autosaveTimer);
+  }, [
+    bpm,
+    loopBars,
+    quantize,
+    swing,
+    metronome,
+    lowLatency,
+    countInBars,
+    gridResolution,
+    snapToGrid,
+    followPlayhead,
+    maxPolyphony,
+    selectedPad,
+    muted,
+    pattern,
+    pads,
+  ]);
+
+
 
   useEffect(()=>{
     setPatternLive(prev=> Array.from({length:16}, (_, r)=> Array.from({length:loopBars*TICKS_PER_BAR},(_,i)=> prev[r]?.[i] || 0)));
@@ -784,7 +1157,45 @@ function App(){
   return <main className="appLocked">
     {page === 'play' && <PlayPage transport={{isPlaying,start,stop,isRecording,requestRecord,isCountingIn,bpm,loopBars,currentStep}} sequencer={{pads,pattern,setPatternLive,currentStep,loopBars,gridResolution,snapToGrid,muted,setMuted,followPlayhead,editingPad,onEditPad:(i)=>{setSelectedPad(i); setEditingPad(prev => prev === i ? null : i);}}} pads={{pads,selectedPad,setSelectedPad,onPad:recordPad,velocity}} editor={{padIndex: editingPad, pads, setPads, onClose:()=>setEditingPad(null), onPreview:(i)=>playPad(i, velocity), openSamples:()=>{setSelectedPad(editingPad ?? selectedPad); setPage('samples');}}} />}
     {page === 'samples' && <SamplesPage pads={pads} setPads={setPads} selectedPad={selectedPad} setSelectedPad={setSelectedPad}/>} 
-    {page === 'settings' && <SettingsPage bpm={bpm} setBpm={setBpm} loopBars={loopBars} setLoopBars={setLoopBars} quantize={quantize} setQuantize={setQuantize} swing={swing} setSwing={setSwing} metronome={metronome} setMetronome={setMetronome} lowLatency={lowLatency} setLowLatency={setLowLatency} preloadKit={preloadKit} loadStatus={loadStatus} snapToGrid={snapToGrid} setSnapToGrid={setSnapToGrid} gridResolution={gridResolution} setGridResolution={setGridResolution} countInBars={countInBars} setCountInBars={setCountInBars} followPlayhead={followPlayhead} setFollowPlayhead={setFollowPlayhead} maxPolyphony={maxPolyphony} setMaxPolyphony={setMaxPolyphony} activeVoices={activeVoices} clearPattern={clearPattern} copyBar={copyBar}/>} 
+    {page === 'settings' && (
+  <SettingsPage
+    bpm={bpm}
+    setBpm={setBpm}
+    loopBars={loopBars}
+    setLoopBars={setLoopBars}
+    quantize={quantize}
+    setQuantize={setQuantize}
+    swing={swing}
+    setSwing={setSwing}
+    metronome={metronome}
+    setMetronome={setMetronome}
+    lowLatency={lowLatency}
+    setLowLatency={setLowLatency}
+    preloadKit={preloadKit}
+    loadStatus={loadStatus}
+    snapToGrid={snapToGrid}
+    setSnapToGrid={setSnapToGrid}
+    gridResolution={gridResolution}
+    setGridResolution={setGridResolution}
+    countInBars={countInBars}
+    setCountInBars={setCountInBars}
+    followPlayhead={followPlayhead}
+    setFollowPlayhead={setFollowPlayhead}
+    maxPolyphony={maxPolyphony}
+    setMaxPolyphony={setMaxPolyphony}
+    activeVoices={activeVoices}
+    clearPattern={clearPattern}
+    copyBar={copyBar}
+    project={{
+      saveProject,
+      loadProject,
+      exportProject,
+      importProjectFile,
+      newProject,
+      lastSaved
+    }}
+  />
+)}
     {(isCountingIn || countText) && <div className="countOverlay"><b>{countText}</b><span>{isCountingIn ? 'Count-In' : 'Recording'}</span></div>}
     <nav className="bottomNav">
       <button className={page==='play'?'active':''} onClick={()=>setPage('play')}><Music2 size={17}/>Play</button>
