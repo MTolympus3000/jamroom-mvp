@@ -339,8 +339,6 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
   const queueGridToggle = (event, r, c) => {
     event.preventDefault();
     if (touchScrollRef.current.active || Date.now() < gestureGuardUntilRef.current) return;
-    // Performance pass: one-finger note entry is instant again. Two-finger panning
-    // is protected by the gesture guard and movement threshold above.
     toggleGridCell(r, c);
   };
 
@@ -384,8 +382,6 @@ function MpcPads({ pads, selectedPad, setSelectedPad, onPad, velocity }) {
     })}
   </section>
 }
-
-
 
 function SampleWaveform({ pad }) {
   const [peaks, setPeaks] = useState([]);
@@ -732,8 +728,6 @@ function App(){
       return;
     }
 
-    // Recording arms immediately, even during count-in.
-    // This lets early pad hits get captured instead of being ignored.
     if (!timer.current) await start();
     setIsRecording(true);
 
