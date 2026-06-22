@@ -1,31 +1,19 @@
-# JamRoom Drum Machine MVP
+# JamRoom Drum Machine
 
-Focused build: only the drum machine and MIDI drum sequencer.
+A focused MPC/FPC-style drum machine and MIDI step sequencer built with React + Vite.
 
 ## Features
 
-- Play / Stop
-- Record Pads toggle
-- BPM control
-- Loop length: 1, 2, 4, 8, or 16 bars
-- Quantize resolution
-- Quantize strength
-- Swing control UI
-- MIDI drum sequencer grid
-- 16 drum pads
-- Keyboard shortcuts for pads
-- Assign imported audio sample to selected pad
-- Copy Bar 1 across the full loop
-- Clear pattern
-
-## Removed from this focused MVP
-
-- Chord player
-- Piano roll
-- Audio track timeline
-- Waveform playlist
-- Collaboration
-- Export
+- Dark JamRoom UI based on the generated mockup
+- Transport bar: play, stop, record, BPM, loop length, quantize, swing, metronome
+- Step sequencer grid with 8 visible drum lanes
+- 16 pad MPC layout
+- FPC named-pad layout
+- Factory Southside drum kit browser
+- Sample import per pad
+- Record pad taps into the sequencer
+- Mute and solo per sequencer row
+- Copy first bar across full loop
 
 ## Run locally
 
@@ -34,6 +22,20 @@ npm install
 npm run dev
 ```
 
-## Deploy
+## Deploy on Netlify
 
-Push to GitHub. Netlify will rebuild automatically.
+Build command:
+
+```bash
+npm run build
+```
+
+Publish directory:
+
+```bash
+dist
+```
+
+## Notes
+
+This is a front-end MVP. It uses the Web Audio API to play local factory WAV samples from `public/factory` and user-imported files from the browser.
