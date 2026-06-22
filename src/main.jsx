@@ -45,6 +45,7 @@ const defaultPads = [
 function useDrumAudio(pads, volume = 1, lowLatency = true, maxPolyphony = 32) {
   const ctxRef = useRef(null);
   const bufferMap = useRef(new Map());
+  const reverseMap = useRef(new Map());
   const loadingMap = useRef(new Map());
   const activeVoicesRef = useRef([]);
   const [activeVoices, setActiveVoices] = useState(0);
@@ -118,6 +119,20 @@ function useDrumAudio(pads, volume = 1, lowLatency = true, maxPolyphony = 32) {
     }
   };
 
+  const makeReverseBuffer = (ctx, buffer) => {
+    const key = buffer.__jamroomReverseKey || `${buffer.length}-${buffer.sampleRate}-${buffer.numberOfChannels}`;
+    buffer.__jamroomReverseKey = key;
+    if (reverseMap.current.has(key)) return reverseMap.current.get(key);
+    const reversed = ctx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+    for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+      const src = buffer.getChannelData(ch);
+      const dst = reversed.getChannelData(ch);
+      for (let i = 0, j = src.length - 1; i < src.length; i++, j--) dst[i] = src[j];
+    }
+    reverseMap.current.set(key, reversed);
+    return reversed;
+  };
+
   const triggerBuffer = (ctx, buffer, pad, velocity = 100, when = 0) => {
     const effectiveChoke = pad?.voiceMode === 'mono' ? 1000 + (pad?.padIndex || 0) : (pad?.chokeGroup || 0);
     enforcePolyphony(effectiveChoke);
@@ -127,8 +142,19 @@ function useDrumAudio(pads, volume = 1, lowLatency = true, maxPolyphony = 32) {
     const padVol = pad?.volume ?? 1;
     const tune = pad?.tune ?? 0;
     const fine = pad?.fine ?? 0;
-    source.buffer = buffer;
+    const useBuffer = pad?.reverse ? makeReverseBuffer(ctx, buffer) : buffer;
+    const trimStartPct = Math.max(0, Math.min(99, pad?.trimStart ?? 0));
+    const trimEndPct = Math.max(trimStartPct + 1, Math.min(100, pad?.trimEnd ?? 100));
+    const offset = useBuffer.duration * (trimStartPct / 100);
+    const endTime = useBuffer.duration * (trimEndPct / 100);
+    const duration = Math.max(0.01, endTime - offset);
+    source.buffer = useBuffer;
     source.playbackRate.value = Math.pow(2, (tune + fine / 100) / 12);
+    if (pad?.loopSample) {
+      source.loop = true;
+      source.loopStart = offset;
+      source.loopEnd = endTime;
+    }
     gain.gain.value = Math.max(0.001, (velocity / 127) * volume * padVol);
     if (panNode) {
       panNode.pan.value = Math.max(-1, Math.min(1, pad?.pan ?? 0));
@@ -140,7 +166,8 @@ function useDrumAudio(pads, volume = 1, lowLatency = true, maxPolyphony = 32) {
     activeVoicesRef.current.push(voice);
     refreshVoiceCount();
     source.onended = () => removeVoice(voice);
-    source.start(ctx.currentTime + Math.max(0, when));
+    if (pad?.loopSample) source.start(ctx.currentTime + Math.max(0, when), offset);
+    else source.start(ctx.currentTime + Math.max(0, when), offset, duration);
   };
 
   const playClick = async (isDownbeat = false) => {
@@ -218,19 +245,7 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
   const rowsRef = useRef(null);
   const touchScrollRef = useRef({ active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0, moved: false });
   const gestureGuardUntilRef = useRef(0);
-  const holdPanRef = useRef({
-    timer: null,
-    active: false,
-    pointerId: null,
-    row: null,
-    col: null,
-    startX: 0,
-    startY: 0,
-    startLeft: 0,
-    startTop: 0,
-    movedBeforeHold: false,
-  });
-  const [isHoldPanning, setIsHoldPanning] = useState(false);
+  const firstTouchRef = useRef(null);
   const [viewport, setViewport] = useState({ left: 0, top: 0, width: 1, height: 1 });
 
   const updateViewport = () => {
@@ -258,25 +273,63 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
     }
   }, [currentStep, followPlayhead, loopBars, gridTicks]);
 
-  const clearHoldPan = () => {
-    const state = holdPanRef.current;
-    if (state.timer) clearTimeout(state.timer);
-    holdPanRef.current = {
-      timer: null,
-      active: false,
-      pointerId: null,
-      row: null,
-      col: null,
-      startX: 0,
-      startY: 0,
-      startLeft: 0,
-      startTop: 0,
-      movedBeforeHold: false,
-    };
-    setIsHoldPanning(false);
+  const avgTouchX = (touches) => (touches[0].clientX + touches[1].clientX) / 2;
+  const avgTouchY = (touches) => (touches[0].clientY + touches[1].clientY) / 2;
+
+  const onGridTouchStart = (event) => {
+    if (event.touches.length === 1) {
+      const t = event.touches[0];
+      firstTouchRef.current = { x: t.clientX, y: t.clientY, time: Date.now() };
+      return;
+    }
+    if (event.touches.length >= 2 && rowsRef.current) {
+      gestureGuardUntilRef.current = Date.now() + 90;
+      touchScrollRef.current = {
+        active: true,
+        moved: false,
+        startX: avgTouchX(event.touches),
+        startY: avgTouchY(event.touches),
+        startLeft: rowsRef.current.scrollLeft,
+        startTop: rowsRef.current.scrollTop,
+      };
+      event.preventDefault();
+    }
   };
 
-  useEffect(() => () => clearHoldPan(), []);
+  const onGridTouchMove = (event) => {
+    const el = rowsRef.current;
+    if (!el) return;
+    if (event.touches.length >= 2) {
+      if (!touchScrollRef.current.active) {
+        touchScrollRef.current = {
+          active: true,
+          moved: false,
+          startX: avgTouchX(event.touches),
+          startY: avgTouchY(event.touches),
+          startLeft: el.scrollLeft,
+          startTop: el.scrollTop,
+        };
+      }
+      const deltaX = avgTouchX(event.touches) - touchScrollRef.current.startX;
+      const deltaY = avgTouchY(event.touches) - touchScrollRef.current.startY;
+      if (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6) touchScrollRef.current.moved = true;
+      el.scrollLeft = touchScrollRef.current.startLeft - deltaX;
+      el.scrollTop = touchScrollRef.current.startTop - deltaY;
+      updateViewport();
+      gestureGuardUntilRef.current = Date.now() + 90;
+      event.preventDefault();
+      return;
+    }
+    if (event.touches.length === 1) event.preventDefault();
+  };
+
+  const onGridTouchEnd = (event) => {
+    if (!event.touches || event.touches.length < 2) {
+      const wasPanning = touchScrollRef.current.active && touchScrollRef.current.moved;
+      touchScrollRef.current.active = false;
+      if (wasPanning) gestureGuardUntilRef.current = Date.now() + 120;
+    }
+  };
 
   const toggleGridCell = (r, cellIndex) => {
     const rawTick = Math.min(totalTicks - 1, cellIndex * gridTicks);
@@ -284,75 +337,12 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
     setPatternLive(prev => prev.map((row, ri) => ri === r ? row.map((v, ci) => ci === tick ? (v ? 0 : 100) : v) : row));
   };
 
-  const beginGridPress = (event, r, c) => {
+  const queueGridToggle = (event, r, c) => {
     event.preventDefault();
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-    if (Date.now() < gestureGuardUntilRef.current) return;
-
-    const el = rowsRef.current;
-    if (!el) return;
-
-    clearHoldPan();
-
-    holdPanRef.current = {
-      timer: null,
-      active: false,
-      pointerId: event.pointerId,
-      row: r,
-      col: c,
-      startX: event.clientX,
-      startY: event.clientY,
-      startLeft: el.scrollLeft,
-      startTop: el.scrollTop,
-      movedBeforeHold: false,
-    };
-
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-
-    holdPanRef.current.timer = setTimeout(() => {
-      const state = holdPanRef.current;
-      if (state.pointerId !== event.pointerId || state.movedBeforeHold) return;
-      state.active = true;
-      gestureGuardUntilRef.current = Date.now() + 120;
-      setIsHoldPanning(true);
-    }, 500);
-  };
-
-  const moveGridPress = (event) => {
-    const state = holdPanRef.current;
-    const el = rowsRef.current;
-    if (!el || state.pointerId !== event.pointerId) return;
-
-    const dx = event.clientX - state.startX;
-    const dy = event.clientY - state.startY;
-    const movedEnough = Math.abs(dx) > 7 || Math.abs(dy) > 7;
-
-    if (!state.active) {
-      if (movedEnough) state.movedBeforeHold = true;
-      event.preventDefault();
-      return;
-    }
-
-    el.scrollLeft = state.startLeft - dx;
-    el.scrollTop = state.startTop - dy;
-    updateViewport();
-    gestureGuardUntilRef.current = Date.now() + 120;
-    event.preventDefault();
-  };
-
-  const endGridPress = (event) => {
-    const state = holdPanRef.current;
-    if (state.pointerId !== event.pointerId) return;
-
-    const shouldToggle = !state.active && !state.movedBeforeHold;
-    const row = state.row;
-    const col = state.col;
-    clearHoldPan();
-
-    if (shouldToggle && row !== null && col !== null) {
-      toggleGridCell(row, col);
-    }
-    event.preventDefault();
+    if (touchScrollRef.current.active || Date.now() < gestureGuardUntilRef.current) return;
+    // Performance pass: one-finger note entry is instant again. Two-finger panning
+    // is protected by the gesture guard and movement threshold above.
+    toggleGridCell(r, c);
   };
 
   const displayHit = (row, cellIndex) => row[Math.min(totalTicks - 1, cellIndex * gridTicks)] || 0;
@@ -363,9 +353,9 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
   const visibleColumns = Array.from({ length: Math.max(0, endCol - startCol) }, (_, i) => startCol + i);
 
   return <section className="playSequencer">
-    <div className="seqHeader"><span>SEQUENCER</span><small>{gridResolution} beat · snap {snapToGrid?'on':'off'} · hold 0.5s to pan</small></div>
+    <div className="seqHeader"><span>SEQUENCER</span><small>{gridResolution} beat · snap {snapToGrid?'on':'off'}</small></div>
     <div className="barNumbers">{Array.from({length: loopBars}, (_, i)=><span key={i} style={{left:`${(i/loopBars)*100}%`}}>{i+1}</span>)}</div>
-    <div className={`seqRows ${isHoldPanning ? 'holdPanning' : ''}`} ref={rowsRef} onScroll={updateViewport}>
+    <div className="seqRows" ref={rowsRef} onScroll={updateViewport} onTouchStart={onGridTouchStart} onTouchMove={onGridTouchMove} onTouchEnd={onGridTouchEnd} onTouchCancel={onGridTouchEnd}>
       {pads.map((pad, r) => <div className="seqRow" key={r}>
         <button className={`rowName ${muted[r]?'muted':''} ${editingPad===r?'editing':''}`} onClick={()=>onEditPad(r)}><i className={pad.color}></i><b>{r+1}</b><span>{pad.label}</span></button>
         <div className="stepGridVirtual" style={{width:`${columns * STEP_CELL_WIDTH}px`}}>
@@ -373,7 +363,7 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
             {visibleColumns.map((c) => {
               const tick = c * gridTicks;
               const now = currentCol === c;
-              return <button key={c} onPointerDown={(e)=>beginGridPress(e,r,c)} onPointerMove={moveGridPress} onPointerUp={endGridPress} onPointerCancel={endGridPress} className={`step ${displayHit(pattern[r] || [], c) ? 'hit' : ''} ${now?'now':''} ${tick % 24 === 0?'beat':''} ${tick % TICKS_PER_BAR === 0?'barStep':''}`}></button>
+              return <button key={c} onPointerDown={(e)=>queueGridToggle(e,r,c)} className={`step ${displayHit(pattern[r] || [], c) ? 'hit' : ''} ${now?'now':''} ${tick % 24 === 0?'beat':''} ${tick % TICKS_PER_BAR === 0?'barStep':''}`}></button>
             })}
           </div>
         </div>
@@ -392,28 +382,72 @@ function MpcPads({ pads, selectedPad, setSelectedPad, onPad, velocity }) {
 
 
 function TrackEditor({ padIndex, pads, setPads, onClose, onPreview }) {
+  const [editorPage, setEditorPage] = useState(0);
+  const gesture = useRef({ holdTimer: null, armed: false, startX: 0, startY: 0 });
   const pad = pads[padIndex];
   const setPadValue = (key, value) => setPads(prev => prev.map((p, i) => i === padIndex ? { ...p, [key]: value } : p));
   if (!pad) return null;
-  return <section className="trackEditor fixedPadEditor">
+
+  const beginEditorGesture = (event) => {
+    if (event.target.closest('button,input,select')) return;
+    gesture.current.startX = event.clientX;
+    gesture.current.startY = event.clientY;
+    gesture.current.armed = false;
+    clearTimeout(gesture.current.holdTimer);
+    gesture.current.holdTimer = setTimeout(() => {
+      gesture.current.armed = true;
+    }, 500);
+  };
+  const moveEditorGesture = (event) => {
+    if (!gesture.current.armed) return;
+    event.preventDefault();
+  };
+  const endEditorGesture = (event) => {
+    clearTimeout(gesture.current.holdTimer);
+    if (!gesture.current.armed) return;
+    const dx = event.clientX - gesture.current.startX;
+    if (dx < -48) setEditorPage(1);
+    if (dx > 48) setEditorPage(0);
+    gesture.current.armed = false;
+  };
+
+  const trimStart = pad.trimStart ?? 0;
+  const trimEnd = pad.trimEnd ?? 100;
+
+  return <section className="trackEditor fixedPadEditor" onPointerDown={beginEditorGesture} onPointerMove={moveEditorGesture} onPointerUp={endEditorGesture} onPointerCancel={endEditorGesture}>
     <div className="editorTop miniEditorTop">
       <button className="backBtn" onClick={onClose}>‹</button>
-      <div className="editorTitle"><small>PAD EDITOR</small><b><i className={pad.color}></i>{padIndex + 1} {pad.label}</b></div>
+      <div className="editorTitle"><small>{editorPage === 0 ? 'PAD EDITOR' : 'TRIM / LOOP'}</small><b><i className={pad.color}></i>{padIndex + 1} {pad.label}</b></div>
       <button className="previewBtn" onClick={() => onPreview(padIndex)}>▶</button>
       <button className="closeBtn" onClick={onClose}>×</button>
     </div>
 
-    <div className="minimalEditorGrid">
+    <div className="editorPageTabs">
+      <button className={editorPage===0?'active':''} onClick={()=>setEditorPage(0)}>Params</button>
+      <button className={editorPage===1?'active':''} onClick={()=>setEditorPage(1)}>Trim / Loop</button>
+      <span>Hold 0.5s + swipe</span>
+    </div>
+
+    {editorPage === 0 ? <div className="minimalEditorGrid">
       <label className="editorControl"><span>Volume</span><input type="range" min="0" max="2" step="0.01" value={pad.volume ?? 1} onChange={e=>setPadValue('volume', Number(e.target.value))}/><b>{(((pad.volume ?? 1)-1)*12).toFixed(1)} dB</b></label>
       <label className="editorControl"><span>Pan</span><input type="range" min="-1" max="1" step="0.01" value={pad.pan ?? 0} onChange={e=>setPadValue('pan', Number(e.target.value))}/><b>{(pad.pan ?? 0) === 0 ? 'C' : (pad.pan ?? 0) < 0 ? 'L' : 'R'}</b></label>
       <label className="editorControl"><span>Pitch</span><input type="range" min="-24" max="24" step="1" value={pad.tune ?? 0} onChange={e=>setPadValue('tune', Number(e.target.value))}/><b>{pad.tune ?? 0} st</b></label>
       <label className="editorControl"><span>Fine</span><input type="range" min="-100" max="100" step="1" value={pad.fine ?? 0} onChange={e=>setPadValue('fine', Number(e.target.value))}/><b>{pad.fine ?? 0} ct</b></label>
-
       <div className="editorSelectRow"><span>Choke</span><select value={pad.chokeGroup ?? 0} onChange={e=>setPadValue('chokeGroup', Number(e.target.value))}>{[0,1,2,3,4,5,6,7,8].map(g=><option key={g} value={g}>{g===0?'Off':`Group ${g}`}</option>)}</select></div>
       <div className="editorSelectRow"><span>Voice</span><select value={pad.voiceMode || 'poly'} onChange={e=>setPadValue('voiceMode', e.target.value)}>{['poly','mono'].map(mode=><option key={mode} value={mode}>{mode}</option>)}</select></div>
-
       <div className="editorActionRow"><button className={pad.mute?'active':''} onClick={()=>setPadValue('mute', !pad.mute)}>Mute</button><button className={pad.solo?'active':''} onClick={()=>setPadValue('solo', !pad.solo)}>Solo</button><button onClick={onClose}>Close</button></div>
-    </div>
+    </div> : <div className="trimEditorGrid">
+      <div className="trimReadout"><span>Start <b>{trimStart}%</b></span><span>Length <b>{Math.max(1, trimEnd-trimStart)}%</b></span><span>End <b>{trimEnd}%</b></span></div>
+      <div className="trimWave">
+        {Array.from({length: 56}, (_, i) => <span key={i} style={{height:`${18 + Math.abs(Math.sin(i*.41))*48*(1-i/70)}%`}} />)}
+        <i className="trimMarker start" style={{left:`${trimStart}%`}} />
+        <i className="trimMarker end" style={{left:`${trimEnd}%`}} />
+      </div>
+      <label className="editorControl wideControl"><span>Start</span><input type="range" min="0" max="95" step="1" value={trimStart} onChange={e=>setPadValue('trimStart', Math.min(Number(e.target.value), trimEnd-1))}/><b>{trimStart}%</b></label>
+      <label className="editorControl wideControl"><span>End</span><input type="range" min="5" max="100" step="1" value={trimEnd} onChange={e=>setPadValue('trimEnd', Math.max(Number(e.target.value), trimStart+1))}/><b>{trimEnd}%</b></label>
+      <div className="trimActions"><button className={pad.loopSample?'active':''} onClick={()=>setPadValue('loopSample', !pad.loopSample)}>Loop {pad.loopSample?'ON':'OFF'}</button><button className={pad.reverse?'active':''} onClick={()=>setPadValue('reverse', !pad.reverse)}>Reverse {pad.reverse?'ON':'OFF'}</button><button onClick={()=>{setPadValue('trimStart',0);setPadValue('trimEnd',100);}}>Reset</button></div>
+      <button className="previewWide" onClick={()=>onPreview(padIndex)}>Preview Selection</button>
+    </div>}
   </section>
 }
 
@@ -496,7 +530,7 @@ function App(){
   const [countInBars,setCountInBars]=useState(1);
   const [currentStep,setCurrentStep]=useState(-1);
   const [pattern,setPattern]=useState(()=>makePattern(16,4));
-  const [pads,setPads]=useState(() => defaultPads.map(p => ({ volume:1, pan:0, tune:0, fine:0, attack:0, decay:250, release:120, voiceMode:'poly', mute:false, solo:false, filter:0, distortion:0, reverb:0, ...p })));
+  const [pads,setPads]=useState(() => defaultPads.map(p => ({ volume:1, pan:0, tune:0, fine:0, attack:0, decay:250, release:120, voiceMode:'poly', mute:false, solo:false, filter:0, distortion:0, reverb:0, trimStart:0, trimEnd:100, loopSample:false, reverse:false, ...p })));
   const [editingPad,setEditingPad]=useState(null);
   const [selectedPad,setSelectedPad]=useState(0);
   const [velocity]=useState(110);
