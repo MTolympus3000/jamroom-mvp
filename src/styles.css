@@ -300,3 +300,78 @@ button, input, select, textarea {
 @media (min-width:800px) {
   .playPage { grid-template-rows: 44px minmax(220px, 48%) minmax(300px, 1fr); }
 }
+
+/* v16: pad visibility hard fix - fixed slots, no disappearing pad area */
+.appLocked {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  padding: 8px 8px 62px;
+  display: flex;
+  flex-direction: column;
+}
+
+.playPage {
+  flex: 1 1 auto;
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.miniTransport {
+  flex: 0 0 42px;
+}
+
+.playSequencer {
+  flex: 0 0 clamp(170px, 42dvh, 310px);
+  min-height: 0;
+  max-height: clamp(170px, 42dvh, 310px);
+  overflow: hidden;
+}
+
+.mpcOnly,
+.trackEditor.fixedPadEditor {
+  flex: 1 1 auto;
+  display: grid;
+  min-height: 180px;
+  max-height: none;
+  height: auto;
+  overflow: hidden;
+  visibility: visible;
+  opacity: 1;
+}
+
+.mpcOnly {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+}
+
+.mpcPad {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.trackEditor.fixedPadEditor {
+  grid-template-rows: 38px minmax(0, 1fr);
+}
+
+.bottomNav {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  height: 48px;
+}
+
+@media (max-height: 720px) {
+  .playSequencer { flex-basis: clamp(145px, 38dvh, 240px); max-height: clamp(145px, 38dvh, 240px); }
+  .mpcOnly, .trackEditor.fixedPadEditor { min-height: 160px; }
+}
