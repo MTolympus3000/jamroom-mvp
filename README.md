@@ -1,31 +1,38 @@
-# JamRoom Drum Machine v6
+# JamRoom Drum v8 — Two-Finger Pan
 
-Focused MPC drum machine update.
+Focused MPC-style drum machine.
 
-## Added
+## Added in v8
+- Two-finger sequencer pan now moves horizontally and vertically.
+- One-finger tap still adds/removes MIDI notes.
+- One-finger pad play stays locked and does not move the screen.
+- Follow Playhead remains available in Settings.
 
-- Minimal horizontal scrollbar for the MIDI sequencer grid
-- Grid menu simplified to 1/4, 1/8, 1/16, 1/32 beat
-- Count-In now arms recording immediately when countdown begins
-- Early pad hits during count-in are captured
-- Snap-to-grid removes off-grid notes when enabled or grid changes
-- Mouse-added notes and recorded pad hits snap to selected grid
+## Prior features retained
+- Low latency pad engine
+- Count-in capture
+- Snap-to-grid for mouse notes and recorded hits
+- Grid options: 1/4, 1/8, 1/16, 1/32
+- MPC 4x4 pads only
+- Factory Southside kit
 
-## Run locally
-
+## Run
 ```bash
 npm install
 npm run dev
 ```
 
 ## Build
-
 ```bash
 npm run build
 ```
 
-## v7 Navigation Update
-- Added Follow Playhead toggle in Settings.
-- Sequencer grid no longer slides with one finger.
-- Use two fingers on the sequencer grid to horizontally move through the MIDI grid.
-- One-finger taps remain for adding/removing MIDI notes.
+
+## v9 Two-Finger Guard Update
+
+- Removed the sequencer scrollbar.
+- Sequencer navigation is now two-finger pan only.
+- Two-finger pan moves horizontally through time and vertically through drum rows.
+- One-finger tap still adds/removes notes.
+- Touch note entry is delayed briefly so a second finger can join without accidentally creating notes.
+- Any pending note tap is cancelled the moment two-finger pan starts.
