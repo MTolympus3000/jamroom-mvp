@@ -46,3 +46,12 @@ npm run build
 - Default choke groups:
   - Group 1: closed/open hats
   - Group 2: 808 pads
+
+
+## v12 Performance Pass
+- Virtualized sequencer grid rendering for longer patterns.
+- RequestAnimationFrame playhead UI updates.
+- Instant one-finger note entry.
+- Two-finger pan remains protected with a movement threshold.
+- 32-voice default polyphony remains enabled.
+- Follow playhead remains available in Settings.

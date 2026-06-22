@@ -5,6 +5,8 @@ import { FACTORY_CATEGORIES } from './factorySamples';
 import './styles.css';
 
 const TICKS_PER_BAR = 96;
+const STEP_CELL_WIDTH = 21;
+const VIRTUAL_BUFFER_COLS = 12;
 const GRID_OPTIONS = [
   { label:'1/4', ticks:24 },
   { label:'1/8', ticks:12 },
@@ -203,60 +205,50 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
   const gridTicks = getGridTicks(gridResolution);
   const columns = Math.ceil(totalTicks / gridTicks);
   const rowsRef = useRef(null);
-  const touchScrollRef = useRef({ active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
-  const pendingTapRef = useRef(null);
+  const touchScrollRef = useRef({ active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0, moved: false });
   const gestureGuardUntilRef = useRef(0);
-  const [scrollInfo, setScrollInfo] = useState({ left: 0, max: 0 });
+  const firstTouchRef = useRef(null);
+  const [viewport, setViewport] = useState({ left: 0, top: 0, width: 1, height: 1 });
 
-  const clearPendingTap = () => {
-    if (pendingTapRef.current) {
-      clearTimeout(pendingTapRef.current.timeout);
-      pendingTapRef.current = null;
-    }
-  };
-
-  const updateScrollInfo = () => {
+  const updateViewport = () => {
     const el = rowsRef.current;
     if (!el) return;
-    setScrollInfo({ left: el.scrollLeft, max: Math.max(0, el.scrollWidth - el.clientWidth) });
+    setViewport({ left: el.scrollLeft, top: el.scrollTop, width: el.clientWidth, height: el.clientHeight });
   };
 
   useEffect(() => {
-    updateScrollInfo();
-    window.addEventListener('resize', updateScrollInfo);
-    return () => window.removeEventListener('resize', updateScrollInfo);
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
   }, [loopBars, gridResolution]);
 
   useEffect(() => {
     const el = rowsRef.current;
     if (!el || !followPlayhead || currentStep < 0 || touchScrollRef.current.active) return;
-    const totalTicks = loopBars * TICKS_PER_BAR;
-    const ratio = currentStep / Math.max(1, totalTicks - 1);
-    const target = ratio * el.scrollWidth - el.clientWidth * 0.5;
-    const nextLeft = Math.max(0, Math.min(el.scrollWidth - el.clientWidth, target));
-    if (Math.abs(el.scrollLeft - nextLeft) > 18) {
+    const currentCol = Math.floor(currentStep / gridTicks);
+    const target = currentCol * STEP_CELL_WIDTH - el.clientWidth * 0.5;
+    const maxLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+    const nextLeft = Math.max(0, Math.min(maxLeft, target));
+    if (Math.abs(el.scrollLeft - nextLeft) > STEP_CELL_WIDTH * 2) {
       el.scrollLeft = nextLeft;
-      updateScrollInfo();
+      updateViewport();
     }
-  }, [currentStep, followPlayhead, loopBars]);
-
-  const jumpScroll = (event) => {
-    const el = rowsRef.current;
-    if (!el) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
-    el.scrollLeft = (x / rect.width) * scrollInfo.max;
-    updateScrollInfo();
-  };
+  }, [currentStep, followPlayhead, loopBars, gridTicks]);
 
   const avgTouchX = (touches) => (touches[0].clientX + touches[1].clientX) / 2;
   const avgTouchY = (touches) => (touches[0].clientY + touches[1].clientY) / 2;
+
   const onGridTouchStart = (event) => {
+    if (event.touches.length === 1) {
+      const t = event.touches[0];
+      firstTouchRef.current = { x: t.clientX, y: t.clientY, time: Date.now() };
+      return;
+    }
     if (event.touches.length >= 2 && rowsRef.current) {
-      clearPendingTap();
-      gestureGuardUntilRef.current = Date.now() + 220;
+      gestureGuardUntilRef.current = Date.now() + 90;
       touchScrollRef.current = {
         active: true,
+        moved: false,
         startX: avgTouchX(event.touches),
         startY: avgTouchY(event.touches),
         startLeft: rowsRef.current.scrollLeft,
@@ -265,14 +257,15 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
       event.preventDefault();
     }
   };
+
   const onGridTouchMove = (event) => {
     const el = rowsRef.current;
     if (!el) return;
     if (event.touches.length >= 2) {
-      clearPendingTap();
       if (!touchScrollRef.current.active) {
         touchScrollRef.current = {
           active: true,
+          moved: false,
           startX: avgTouchX(event.touches),
           startY: avgTouchY(event.touches),
           startLeft: el.scrollLeft,
@@ -281,19 +274,22 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
       }
       const deltaX = avgTouchX(event.touches) - touchScrollRef.current.startX;
       const deltaY = avgTouchY(event.touches) - touchScrollRef.current.startY;
+      if (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6) touchScrollRef.current.moved = true;
       el.scrollLeft = touchScrollRef.current.startLeft - deltaX;
       el.scrollTop = touchScrollRef.current.startTop - deltaY;
-      updateScrollInfo();
-      gestureGuardUntilRef.current = Date.now() + 220;
+      updateViewport();
+      gestureGuardUntilRef.current = Date.now() + 90;
       event.preventDefault();
       return;
     }
     if (event.touches.length === 1) event.preventDefault();
   };
+
   const onGridTouchEnd = (event) => {
     if (!event.touches || event.touches.length < 2) {
+      const wasPanning = touchScrollRef.current.active && touchScrollRef.current.moved;
       touchScrollRef.current.active = false;
-      gestureGuardUntilRef.current = Date.now() + 220;
+      if (wasPanning) gestureGuardUntilRef.current = Date.now() + 120;
     }
   };
 
@@ -306,42 +302,32 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
   const queueGridToggle = (event, r, c) => {
     event.preventDefault();
     if (touchScrollRef.current.active || Date.now() < gestureGuardUntilRef.current) return;
-
-    // Mouse/trackpad editing stays instant. Touch editing waits a split second so
-    // the app can detect whether a second finger is joining for two-finger pan.
-    if (event.pointerType !== 'touch') {
-      toggleGridCell(r, c);
-      return;
-    }
-
-    clearPendingTap();
-    pendingTapRef.current = {
-      r,
-      c,
-      timeout: setTimeout(() => {
-        if (!touchScrollRef.current.active && Date.now() >= gestureGuardUntilRef.current) {
-          toggleGridCell(r, c);
-        }
-        pendingTapRef.current = null;
-      }, 130),
-    };
+    // Performance pass: one-finger note entry is instant again. Two-finger panning
+    // is protected by the gesture guard and movement threshold above.
+    toggleGridCell(r, c);
   };
+
   const displayHit = (row, cellIndex) => row[Math.min(totalTicks - 1, cellIndex * gridTicks)] || 0;
-  const thumbWidth = scrollInfo.max ? Math.max(18, 100 * (rowsRef.current?.clientWidth || 1) / (rowsRef.current?.scrollWidth || 1)) : 100;
-  const thumbLeft = scrollInfo.max ? (scrollInfo.left / scrollInfo.max) * (100 - thumbWidth) : 0;
+  const currentCol = currentStep >= 0 ? Math.floor(currentStep / gridTicks) : -1;
+  const startCol = Math.max(0, Math.floor(viewport.left / STEP_CELL_WIDTH) - VIRTUAL_BUFFER_COLS);
+  const visibleCount = Math.ceil(viewport.width / STEP_CELL_WIDTH) + VIRTUAL_BUFFER_COLS * 2;
+  const endCol = Math.min(columns, startCol + visibleCount);
+  const visibleColumns = Array.from({ length: Math.max(0, endCol - startCol) }, (_, i) => startCol + i);
 
   return <section className="playSequencer">
     <div className="seqHeader"><span>SEQUENCER</span><small>{gridResolution} beat · snap {snapToGrid?'on':'off'}</small></div>
     <div className="barNumbers">{Array.from({length: loopBars}, (_, i)=><span key={i} style={{left:`${(i/loopBars)*100}%`}}>{i+1}</span>)}</div>
-    <div className="seqRows" ref={rowsRef} onScroll={updateScrollInfo} onTouchStart={onGridTouchStart} onTouchMove={onGridTouchMove} onTouchEnd={onGridTouchEnd} onTouchCancel={onGridTouchEnd}>
+    <div className="seqRows" ref={rowsRef} onScroll={updateViewport} onTouchStart={onGridTouchStart} onTouchMove={onGridTouchMove} onTouchEnd={onGridTouchEnd} onTouchCancel={onGridTouchEnd}>
       {pads.map((pad, r) => <div className="seqRow" key={r}>
         <button className={`rowName ${muted[r]?'muted':''}`} onClick={()=>setMuted({...muted, [r]: !muted[r]})}><i className={pad.color}></i><b>{r+1}</b><span>{pad.label}</span></button>
-        <div className="stepGrid" style={{gridTemplateColumns:`repeat(${columns}, minmax(18px, 1fr))`}}>
-          {Array.from({length: columns}, (_, c) => {
-            const tick = c * gridTicks;
-            const now = currentStep >= tick && currentStep < tick + gridTicks;
-            return <button key={c} onPointerDown={(e)=>queueGridToggle(e,r,c)} className={`step ${displayHit(pattern[r] || [], c) ? 'hit' : ''} ${now?'now':''} ${tick % 24 === 0?'beat':''} ${tick % TICKS_PER_BAR === 0?'barStep':''}`}></button>
-          })}
+        <div className="stepGridVirtual" style={{width:`${columns * STEP_CELL_WIDTH}px`}}>
+          <div className="visibleSteps" style={{transform:`translateX(${startCol * STEP_CELL_WIDTH}px)`}}>
+            {visibleColumns.map((c) => {
+              const tick = c * gridTicks;
+              const now = currentCol === c;
+              return <button key={c} onPointerDown={(e)=>queueGridToggle(e,r,c)} className={`step ${displayHit(pattern[r] || [], c) ? 'hit' : ''} ${now?'now':''} ${tick % 24 === 0?'beat':''} ${tick % TICKS_PER_BAR === 0?'barStep':''}`}></button>
+            })}
+          </div>
         </div>
       </div>)}
     </div>
@@ -446,6 +432,8 @@ function App(){
   const [page,setPage]=useState('play');
   const timer = useRef(null);
   const countTimer = useRef(null);
+  const rafRef = useRef(null);
+  const lastUiStepRef = useRef(-999);
   const stepRef = useRef(0);
   const currentStepRef = useRef(-1);
   const patternRef = useRef(pattern);
@@ -492,6 +480,8 @@ function App(){
     if(countTimer.current) clearTimeout(countTimer.current);
     timer.current=null;
     countTimer.current=null;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current=null;
     setIsCountingIn(false);
     setCountText('');
     setIsPlaying(false);
@@ -511,12 +501,33 @@ function App(){
     timer.current = setInterval(()=>{
       const maxNow = stateRef.current.loopBars*TICKS_PER_BAR;
       const step = stepRef.current % maxNow;
-      setCurrentStep(step);
       currentStepRef.current = step;
       playStep(step);
       stepRef.current = (step + 1) % maxNow;
     }, msPerStep);
   };
+
+
+  useEffect(() => {
+    if (!isPlaying) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      return;
+    }
+    const loop = () => {
+      const step = currentStepRef.current;
+      if (step !== lastUiStepRef.current) {
+        lastUiStepRef.current = step;
+        setCurrentStep(step);
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [isPlaying]);
 
   const requestRecord = async () => {
     if (isRecording || isCountingIn) {
