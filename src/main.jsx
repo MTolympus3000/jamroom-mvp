@@ -48,6 +48,24 @@ function useDrumAudio(pads, volume = 1) {
     return buf;
   };
 
+  const playClick = async (isDownbeat = false) => {
+    try {
+      const ctx = await ensureContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(isDownbeat ? 1400 : 950, ctx.currentTime);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(isDownbeat ? 0.28 : 0.18, ctx.currentTime + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.055);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.06);
+    } catch (err) {
+      console.warn('Could not play metronome click', err);
+    }
+  };
+
   const playPad = async (padIndex, velocity = 100, when = 0) => {
     const pad = pads[padIndex];
     if (!pad) return;
@@ -78,7 +96,7 @@ function useDrumAudio(pads, volume = 1) {
     }
   };
 
-  return { playPad, bufferMap, ensureContext };
+  return { playPad, playClick, bufferMap, ensureContext };
 }
 
 function Transport({ isPlaying, onPlay, onStop, isRecording, setIsRecording, bpm, setBpm, loopBars, setLoopBars, quantize, setQuantize, swing, setSwing, metronome, setMetronome }) {
@@ -159,13 +177,13 @@ function SampleBrowser({ pads, setPads, selectedPad }) {
 
 function App(){
   const [bpm,setBpm]=useState(120); const [loopBars,setLoopBars]=useState(4); const [quantize,setQuantize]=useState(75); const [swing,setSwing]=useState(55); const [metronome,setMetronome]=useState(true); const [isPlaying,setIsPlaying]=useState(false); const [isRecording,setIsRecording]=useState(false); const [currentStep,setCurrentStep]=useState(-1); const [pattern,setPattern]=useState(()=>makePattern(8,4)); const [pads,setPads]=useState(defaultPads); const [selectedPad,setSelectedPad]=useState(0); const [velocity,setVelocity]=useState(100); const [layout,setLayout]=useState('MPC'); const [resolution,setResolution]=useState('1/16'); const [bank,setBank]=useState('A'); const [noteRepeat,setNoteRepeat]=useState('1/16'); const [repeatEnabled,setRepeatEnabled]=useState(true); const [muted,setMuted]=useState({}); const [solo,setSolo]=useState({});
-  const timer = useRef(null); const stepRef = useRef(0); const { playPad } = useDrumAudio(pads);
+  const timer = useRef(null); const stepRef = useRef(0); const { playPad, playClick } = useDrumAudio(pads);
   useEffect(()=>{ setPattern(prev=> prev.map(row=> Array.from({length:loopBars*STEPS_PER_BAR},(_,i)=> row[i] || 0)).slice(0,8)); },[loopBars]);
   const playCurrentStep = (step) => {
     const soloActive = Object.values(solo).some(Boolean);
     pattern.forEach((row,r)=>{ if(row[step] && !muted[r] && (!soloActive || solo[r])) playPad(r, row[step]); });
-    if (metronome && step % 16 === 0) {
-      // click on bar start, not a sample slot.
+    if (metronome && step % 4 === 0) {
+      playClick(step % 16 === 0);
     }
   };
   const start = () => {
