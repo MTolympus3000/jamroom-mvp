@@ -5,8 +5,26 @@ import { FACTORY_CATEGORIES } from './factorySamples';
 import './styles.css';
 
 const colors = ['red','orange','yellow','green','teal','blue','purple','pink'];
-const STEPS_PER_BAR = 16;
-const makePattern = (rows, bars) => Array.from({length: rows}, () => Array.from({length: bars * STEPS_PER_BAR}, () => 0));
+const TICKS_PER_BAR = 96;
+const GRID_OPTIONS = [
+  { label:'1 Bar', ticks:96 },
+  { label:'1/2 Bar', ticks:48 },
+  { label:'1/4 Bar', ticks:24 },
+  { label:'1 Beat', ticks:24 },
+  { label:'1/2 Beat', ticks:12 },
+  { label:'1/4 Beat', ticks:6 },
+  { label:'1/8 Beat', ticks:3 },
+  { label:'1/4T', ticks:16 },
+  { label:'1/8T', ticks:8 },
+  { label:'1/16T', ticks:4 },
+  { label:'1/32T', ticks:2 },
+];
+const getGridTicks = (label) => GRID_OPTIONS.find(g => g.label === label)?.ticks || 6;
+const snapTick = (tick, gridTicks, strength = 1) => {
+  const target = Math.round(tick / gridTicks) * gridTicks;
+  return Math.max(0, Math.round(tick + (target - tick) * strength));
+};
+const makePattern = (rows, bars) => Array.from({length: rows}, () => Array.from({length: bars * TICKS_PER_BAR}, () => 0));
 
 const defaultPads = [
   { label:'Kick Dirty Club', short:'Kick Dirty\nClub', category:'KICKS', sample:'Kick Dirty Club', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_kicks/SOUTHSIDE_kick_dirty_club.wav', color:'red' },
@@ -143,7 +161,7 @@ function useDrumAudio(pads, volume = 1, lowLatency = true) {
 
   return { playPad, playClick, bufferMap, ensureContext, preloadKit, loadStatus };
 }
-function Transport({ isPlaying, onPlay, onStop, isRecording, setIsRecording, bpm, setBpm, loopBars, setLoopBars, quantize, setQuantize, swing, setSwing, metronome, setMetronome, lowLatency, setLowLatency, preloadKit, loadStatus }) {
+function Transport({ isPlaying, onPlay, onStop, isRecording, setIsRecording, bpm, setBpm, loopBars, setLoopBars, quantize, setQuantize, swing, setSwing, metronome, setMetronome, lowLatency, setLowLatency, preloadKit, loadStatus, snapToGrid, setSnapToGrid, gridResolution, setGridResolution }) {
   return <header className="transport">
     <div className="brand"><span>JAM</span><b>ROOM</b><small>DRUM MACHINE</small></div>
     <button className="transportButton play" onClick={onPlay}><Play size={30} fill="currentColor"/> <span>PLAY</span></button>
@@ -156,6 +174,8 @@ function Transport({ isPlaying, onPlay, onStop, isRecording, setIsRecording, bpm
     <div className="controlCard met"><label>METRONOME</label><button className={metronome ? 'on' : ''} onClick={()=>setMetronome(v=>!v)}>{metronome?'ON':'OFF'}</button><Settings size={23}/></div>
     <div className="controlCard met"><label>LOW LATENCY</label><button className={lowLatency ? 'on' : ''} onClick={()=>setLowLatency(v=>!v)}>{lowLatency?'ON':'OFF'}</button><small>pointerdown</small></div>
     <div className="controlCard preload"><label>KIT CACHE</label><button onClick={preloadKit}>{loadStatus.ready ? 'READY' : 'PRELOAD'}</button><small>{loadStatus.loaded}/{loadStatus.total} loaded</small></div>
+    <div className="controlCard met"><label>SNAP</label><button className={snapToGrid ? 'on' : ''} onClick={()=>setSnapToGrid(v=>!v)}>{snapToGrid?'ON':'OFF'}</button><small>mouse + record</small></div>
+    <div className="controlCard gridSelect"><label>GRID</label><select value={gridResolution} onChange={e=>setGridResolution(e.target.value)}>{GRID_OPTIONS.map(g=><option key={g.label}>{g.label}</option>)}</select><small>snap resolution</small></div>
   </header>
 }
 
@@ -163,28 +183,41 @@ function KnobCard({title, value, suffix, setValue}) {
   return <div className="controlCard knobCard"><label>{title}</label><b>{value}{suffix}</b><input type="range" min="0" max="100" value={value} onChange={e=>setValue(Number(e.target.value))}/><div className="knob" style={{'--deg': `${value*2.7}deg`}} /></div>
 }
 
-function Sequencer({ pads, pattern, setPattern, currentStep, resolution, setResolution, bank, setBank, loopBars, muted, setMuted, solo, setSolo }) {
-  const steps = loopBars * STEPS_PER_BAR;
+function Sequencer({ pads, pattern, setPattern, currentStep, gridResolution, setGridResolution, snapToGrid, setSnapToGrid, bank, setBank, loopBars, muted, setMuted, solo, setSolo }) {
+  const totalTicks = loopBars * TICKS_PER_BAR;
+  const gridTicks = getGridTicks(gridResolution);
+  const columns = Math.ceil(totalTicks / gridTicks);
   const rows = pads.slice(0,8);
-  const toggleStep = (r,c) => {
-    setPattern(prev => prev.map((row,ri) => ri === r ? row.map((v,ci)=> ci === c ? (v ? 0 : 100) : v) : row));
+  const toggleGridCell = (r, cellIndex) => {
+    const tick = Math.min(totalTicks - 1, cellIndex * gridTicks);
+    setPattern(prev => prev.map((row,ri) => ri === r ? row.map((v,ci)=> ci === tick ? (v ? 0 : 100) : v) : row));
   };
   const clear = () => setPattern(makePattern(8, loopBars));
   const copyBar = () => {
     setPattern(prev => prev.map(row => {
-      const first = row.slice(0, STEPS_PER_BAR);
-      return Array.from({length: steps}, (_, i) => first[i % STEPS_PER_BAR]);
+      const first = row.slice(0, TICKS_PER_BAR);
+      return Array.from({length: totalTicks}, (_, i) => first[i % TICKS_PER_BAR] || 0);
     }));
   };
+  const displayHit = (row, cellIndex) => {
+    const tick = Math.min(totalTicks - 1, cellIndex * gridTicks);
+    return row[tick] || 0;
+  };
   return <section className="sequencer panel">
-    <div className="panelHeader"><h2>SEQUENCER</h2><div className="tools"><button><Grid3X3 size={18}/></button><button><BarChart3 size={18}/></button><select value={resolution} onChange={e=>setResolution(e.target.value)}><option>1/8</option><option>1/16</option><option>1/32</option></select><button className="bank">{bank}</button><button><RotateCcw size={16}/></button><button><Redo2 size={16}/></button></div><div className="tools right"><button onClick={copyBar}><Copy size={16}/> COPY</button><button><ClipboardPaste size={16}/> PASTE</button><button onClick={clear}><Trash2 size={16}/> CLEAR</button><button><MoreHorizontal size={17}/></button></div></div>
+    <div className="panelHeader"><h2>SEQUENCER</h2><div className="tools"><button><Grid3X3 size={18}/></button><button><BarChart3 size={18}/></button><select value={gridResolution} onChange={e=>setGridResolution(e.target.value)}>{GRID_OPTIONS.map(g=><option key={g.label}>{g.label}</option>)}</select><button className={snapToGrid ? 'bank activeMini' : 'bank'} onClick={()=>setSnapToGrid(v=>!v)}>SNAP {snapToGrid ? 'ON' : 'OFF'}</button><button className="bank">{bank}</button><button><RotateCcw size={16}/></button><button><Redo2 size={16}/></button></div><div className="tools right"><button onClick={copyBar}><Copy size={16}/> COPY BAR</button><button><ClipboardPaste size={16}/> PASTE</button><button onClick={clear}><Trash2 size={16}/> CLEAR</button><button><MoreHorizontal size={17}/></button></div></div>
     <div className="gridWrap">
       <div className="barNumbers">{Array.from({length:loopBars},(_,i)=><span key={i} style={{left: `${(i/loopBars)*100}%`}}>{i+1}</span>)}</div>
       <div className="rows">
         {rows.map((pad, r) => <div className="seqRow" key={pad.label}>
           <div className="trackName"><i className={pad.color}></i><span>{r+1}</span><b>{pad.label}</b><ChevronDown size={15}/><button onClick={()=>setSolo({...solo,[r]:!solo[r]})} className={solo[r]?'activeMini':''}>S</button><button onClick={()=>setMuted({...muted,[r]:!muted[r]})} className={muted[r]?'activeMini':''}>M</button></div>
-          <div className="stepGrid" style={{gridTemplateColumns:`repeat(${steps}, 1fr)`}}>
-            {Array.from({length:steps}, (_, c) => <button key={c} onClick={()=>toggleStep(r,c)} className={`step ${pattern[r]?.[c] ? 'hit' : ''} ${currentStep===c?'now':''} ${c%4===0?'beat':''}`}></button>)}
+          <div className="stepGrid" style={{gridTemplateColumns:`repeat(${columns}, 1fr)`}}>
+            {Array.from({length:columns}, (_, c) => {
+              const tick = c * gridTicks;
+              const isBeat = tick % 24 === 0;
+              const isBar = tick % TICKS_PER_BAR === 0;
+              const now = currentStep >= tick && currentStep < tick + gridTicks;
+              return <button key={c} title={`${gridResolution} · tick ${tick}`} onClick={()=>toggleGridCell(r,c)} className={`step ${displayHit(pattern[r] || [], c) ? 'hit' : ''} ${now?'now':''} ${isBeat?'beat':''} ${isBar?'barStep':''}`}></button>
+            })}
           </div>
         </div>)}
       </div>
@@ -222,18 +255,18 @@ function SampleBrowser({ pads, setPads, selectedPad }) {
 }
 
 function App(){
-  const [bpm,setBpm]=useState(120); const [loopBars,setLoopBars]=useState(4); const [quantize,setQuantize]=useState(75); const [swing,setSwing]=useState(55); const [metronome,setMetronome]=useState(true); const [lowLatency,setLowLatency]=useState(true); const [isPlaying,setIsPlaying]=useState(false); const [isRecording,setIsRecording]=useState(false); const [currentStep,setCurrentStep]=useState(-1); const [pattern,setPattern]=useState(()=>makePattern(8,4)); const [pads,setPads]=useState(defaultPads); const [selectedPad,setSelectedPad]=useState(0); const [velocity,setVelocity]=useState(100); const [layout,setLayout]=useState('MPC'); const [resolution,setResolution]=useState('1/16'); const [bank,setBank]=useState('A'); const [noteRepeat,setNoteRepeat]=useState('1/16'); const [repeatEnabled,setRepeatEnabled]=useState(true); const [muted,setMuted]=useState({}); const [solo,setSolo]=useState({});
+  const [bpm,setBpm]=useState(120); const [loopBars,setLoopBars]=useState(4); const [quantize,setQuantize]=useState(75); const [swing,setSwing]=useState(55); const [metronome,setMetronome]=useState(true); const [lowLatency,setLowLatency]=useState(true); const [isPlaying,setIsPlaying]=useState(false); const [isRecording,setIsRecording]=useState(false); const [currentStep,setCurrentStep]=useState(-1); const [pattern,setPattern]=useState(()=>makePattern(8,4)); const [pads,setPads]=useState(defaultPads); const [selectedPad,setSelectedPad]=useState(0); const [velocity,setVelocity]=useState(100); const [layout,setLayout]=useState('MPC'); const [gridResolution,setGridResolution]=useState('1/16T'); const [snapToGrid,setSnapToGrid]=useState(true); const [bank,setBank]=useState('A'); const [noteRepeat,setNoteRepeat]=useState('1/16'); const [repeatEnabled,setRepeatEnabled]=useState(true); const [muted,setMuted]=useState({}); const [solo,setSolo]=useState({});
   const timer = useRef(null); const stepRef = useRef(0); const { playPad, playClick, preloadKit, loadStatus } = useDrumAudio(pads, 1, lowLatency);
-  useEffect(()=>{ setPattern(prev=> prev.map(row=> Array.from({length:loopBars*STEPS_PER_BAR},(_,i)=> row[i] || 0)).slice(0,8)); },[loopBars]);
+  useEffect(()=>{ setPattern(prev=> prev.map(row=> Array.from({length:loopBars*TICKS_PER_BAR},(_,i)=> row[i] || 0)).slice(0,8)); },[loopBars]);
   const playCurrentStep = (step) => {
     const soloActive = Object.values(solo).some(Boolean);
     pattern.forEach((row,r)=>{ if(row[step] && !muted[r] && (!soloActive || solo[r])) playPad(r, row[step]); });
-    if (metronome && step % 4 === 0) {
-      playClick(step % 16 === 0);
+    if (metronome && step % 24 === 0) {
+      playClick(step % TICKS_PER_BAR === 0);
     }
   };
   const start = () => {
-    stop(false); setIsPlaying(true); const msPerStep = (60000 / bpm) / 4; const max = loopBars*STEPS_PER_BAR; stepRef.current = 0;
+    stop(false); setIsPlaying(true); const msPerStep = ((60000 / bpm) * 4) / TICKS_PER_BAR; const max = loopBars*TICKS_PER_BAR; stepRef.current = 0;
     timer.current = setInterval(()=>{ const step=stepRef.current; setCurrentStep(step); playCurrentStep(step); stepRef.current=(step+1)%max; }, msPerStep);
   };
   const stop = (reset=true)=>{ if(timer.current) clearInterval(timer.current); timer.current=null; setIsPlaying(false); if(reset){setCurrentStep(-1); stepRef.current=0;} };
@@ -244,11 +277,11 @@ function App(){
     if(!isRecording) return;
     const raw = currentStep >=0 ? currentStep : 0;
     const strength = quantize / 100;
-    const grid = Math.round(raw); const placed = Math.round(raw + (grid - raw) * strength);
+    const placed = snapToGrid ? snapTick(raw, getGridTicks(gridResolution), strength) : raw;
     setPattern(prev=>prev.map((row,r)=> r===Math.min(i,7) ? row.map((v,c)=> c===placed ? vel : v) : row));
   };
   const wrappedPlayPad = (i, vel) => recordPad(i, vel);
-  return <main className="app"><Transport isPlaying={isPlaying} onPlay={start} onStop={()=>stop()} isRecording={isRecording} setIsRecording={setIsRecording} bpm={bpm} setBpm={setBpm} loopBars={loopBars} setLoopBars={setLoopBars} quantize={quantize} setQuantize={setQuantize} swing={swing} setSwing={setSwing} metronome={metronome} setMetronome={setMetronome} lowLatency={lowLatency} setLowLatency={setLowLatency} preloadKit={preloadKit} loadStatus={loadStatus}/><Sequencer pads={pads} pattern={pattern} setPattern={setPattern} currentStep={currentStep} resolution={resolution} setResolution={setResolution} bank={bank} setBank={setBank} loopBars={loopBars} muted={muted} setMuted={setMuted} solo={solo} setSolo={setSolo}/><div className="bottom"><PadControls layout={layout} setLayout={setLayout} velocity={velocity} setVelocity={setVelocity} noteRepeat={noteRepeat} setNoteRepeat={setNoteRepeat} repeatEnabled={repeatEnabled} setRepeatEnabled={setRepeatEnabled}/><Pads pads={pads} selectedPad={selectedPad} setSelectedPad={setSelectedPad} playPad={wrappedPlayPad} velocity={velocity} layout={layout}/><SampleBrowser pads={pads} setPads={setPads} selectedPad={selectedPad}/></div></main>
+  return <main className="app"><Transport isPlaying={isPlaying} onPlay={start} onStop={()=>stop()} isRecording={isRecording} setIsRecording={setIsRecording} bpm={bpm} setBpm={setBpm} loopBars={loopBars} setLoopBars={setLoopBars} quantize={quantize} setQuantize={setQuantize} swing={swing} setSwing={setSwing} metronome={metronome} setMetronome={setMetronome} lowLatency={lowLatency} setLowLatency={setLowLatency} preloadKit={preloadKit} loadStatus={loadStatus} snapToGrid={snapToGrid} setSnapToGrid={setSnapToGrid} gridResolution={gridResolution} setGridResolution={setGridResolution}/><Sequencer pads={pads} pattern={pattern} setPattern={setPattern} currentStep={currentStep} gridResolution={gridResolution} setGridResolution={setGridResolution} snapToGrid={snapToGrid} setSnapToGrid={setSnapToGrid} bank={bank} setBank={setBank} loopBars={loopBars} muted={muted} setMuted={setMuted} solo={solo} setSolo={setSolo}/><div className="bottom"><PadControls layout={layout} setLayout={setLayout} velocity={velocity} setVelocity={setVelocity} noteRepeat={noteRepeat} setNoteRepeat={setNoteRepeat} repeatEnabled={repeatEnabled} setRepeatEnabled={setRepeatEnabled}/><Pads pads={pads} selectedPad={selectedPad} setSelectedPad={setSelectedPad} playPad={wrappedPlayPad} velocity={velocity} layout={layout}/><SampleBrowser pads={pads} setPads={setPads} selectedPad={selectedPad}/></div></main>
 }
 
 createRoot(document.getElementById('root')).render(<App/>);
