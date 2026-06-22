@@ -6,16 +6,19 @@ import './styles.css';
 
 const TICKS_PER_BAR = 96;
 const GRID_OPTIONS = [
-  { label:'1/4 Beat', ticks:24 },
-  { label:'1/8 Beat', ticks:12 },
-  { label:'1/16 Beat', ticks:6 },
-  { label:'1/32 Beat', ticks:3 },
+  { label:'1/4', ticks:24 },
+  { label:'1/8', ticks:12 },
+  { label:'1/16', ticks:6 },
+  { label:'1/32', ticks:3 },
 ];
 const getGridTicks = (label) => GRID_OPTIONS.find(g => g.label === label)?.ticks || 6;
 const snapTick = (tick, gridTicks, strength = 1) => {
   const target = Math.round(tick / gridTicks) * gridTicks;
   return Math.max(0, Math.round(tick + (target - tick) * strength));
 };
+const removeOffGridNotes = (pattern, gridTicks) =>
+  pattern.map(row => row.map((value, tick) => (tick % gridTicks === 0 ? value : 0)));
+
 const makePattern = (rows, bars) => Array.from({length: rows}, () => Array.from({length: bars * TICKS_PER_BAR}, () => 0));
 
 const defaultPads = [
@@ -163,16 +166,43 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
   const totalTicks = loopBars * TICKS_PER_BAR;
   const gridTicks = getGridTicks(gridResolution);
   const columns = Math.ceil(totalTicks / gridTicks);
+  const rowsRef = useRef(null);
+  const [scrollInfo, setScrollInfo] = useState({ left: 0, max: 0 });
+
+  const updateScrollInfo = () => {
+    const el = rowsRef.current;
+    if (!el) return;
+    setScrollInfo({ left: el.scrollLeft, max: Math.max(0, el.scrollWidth - el.clientWidth) });
+  };
+
+  useEffect(() => {
+    updateScrollInfo();
+    window.addEventListener('resize', updateScrollInfo);
+    return () => window.removeEventListener('resize', updateScrollInfo);
+  }, [loopBars, gridResolution]);
+
+  const jumpScroll = (event) => {
+    const el = rowsRef.current;
+    if (!el) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+    el.scrollLeft = (x / rect.width) * scrollInfo.max;
+    updateScrollInfo();
+  };
+
   const toggleGridCell = (r, cellIndex) => {
     const rawTick = Math.min(totalTicks - 1, cellIndex * gridTicks);
     const tick = snapToGrid ? snapTick(rawTick, gridTicks, 1) : rawTick;
     setPatternLive(prev => prev.map((row, ri) => ri === r ? row.map((v, ci) => ci === tick ? (v ? 0 : 100) : v) : row));
   };
   const displayHit = (row, cellIndex) => row[Math.min(totalTicks - 1, cellIndex * gridTicks)] || 0;
+  const thumbWidth = scrollInfo.max ? Math.max(18, 100 * (rowsRef.current?.clientWidth || 1) / (rowsRef.current?.scrollWidth || 1)) : 100;
+  const thumbLeft = scrollInfo.max ? (scrollInfo.left / scrollInfo.max) * (100 - thumbWidth) : 0;
+
   return <section className="playSequencer">
-    <div className="seqHeader"><span>SEQUENCER</span><small>{gridResolution} · snap {snapToGrid?'on':'off'}</small></div>
+    <div className="seqHeader"><span>SEQUENCER</span><small>{gridResolution} beat · snap {snapToGrid?'on':'off'}</small></div>
     <div className="barNumbers">{Array.from({length: loopBars}, (_, i)=><span key={i} style={{left:`${(i/loopBars)*100}%`}}>{i+1}</span>)}</div>
-    <div className="seqRows">
+    <div className="seqRows" ref={rowsRef} onScroll={updateScrollInfo}>
       {pads.map((pad, r) => <div className="seqRow" key={r}>
         <button className={`rowName ${muted[r]?'muted':''}`} onClick={()=>setMuted({...muted, [r]: !muted[r]})}><i className={pad.color}></i><b>{r+1}</b><span>{pad.label}</span></button>
         <div className="stepGrid" style={{gridTemplateColumns:`repeat(${columns}, minmax(18px, 1fr))`}}>
@@ -183,6 +213,11 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
           })}
         </div>
       </div>)}
+    </div>
+    <div className="seqScrollBar" onPointerDown={jumpScroll}>
+      <span className="seqArrow">‹</span>
+      <b style={{width:`${thumbWidth}%`, left:`${thumbLeft}%`}}></b>
+      <span className="seqArrow right">›</span>
     </div>
   </section>
 }
@@ -269,7 +304,7 @@ function App(){
   const [pads,setPads]=useState(defaultPads);
   const [selectedPad,setSelectedPad]=useState(0);
   const [velocity]=useState(110);
-  const [gridResolution,setGridResolution]=useState('1/16 Beat');
+  const [gridResolution,setGridResolution]=useState('1/16');
   const [snapToGrid,setSnapToGrid]=useState(true);
   const [muted,setMuted]=useState({});
   const [page,setPage]=useState('play');
@@ -298,6 +333,13 @@ function App(){
   useEffect(()=>{
     setPatternLive(prev=> Array.from({length:16}, (_, r)=> Array.from({length:loopBars*TICKS_PER_BAR},(_,i)=> prev[r]?.[i] || 0)));
   },[loopBars]);
+
+
+  useEffect(()=>{
+    if (!snapToGrid) return;
+    const gridTicks = getGridTicks(gridResolution);
+    setPatternLive(prev => removeOffGridNotes(prev, gridTicks));
+  },[snapToGrid, gridResolution]);
 
   const playStep = (step) => {
     const pat = patternRef.current;
@@ -350,9 +392,14 @@ function App(){
       return;
     }
 
+    // Recording arms immediately, even during count-in.
+    // This lets early pad hits get captured instead of being ignored.
+    if (!timer.current) await start();
+    setIsRecording(true);
+
     if (countInBars === 0) {
-      if (!isPlaying) await start();
-      setIsRecording(true);
+      setCountText('REC');
+      countTimer.current = setTimeout(() => setCountText(''), 280);
       return;
     }
 
@@ -365,8 +412,6 @@ function App(){
       if (beatIndex >= totalBeats) {
         setIsCountingIn(false);
         setCountText('REC');
-        if (!timer.current) await start();
-        setIsRecording(true);
         countTimer.current = setTimeout(() => setCountText(''), 280);
         return;
       }
@@ -388,9 +433,12 @@ function App(){
     setSelectedPad(i);
     if(!isRecording) return;
     const raw = currentStepRef.current >= 0 ? currentStepRef.current : 0;
-    const strength = quantize / 100;
-    const placed = snapToGrid ? snapTick(raw, getGridTicks(gridResolution), strength) : raw;
-    setPatternLive(prev=>prev.map((row,r)=> r===i ? row.map((v,c)=> c===placed ? vel : v) : row));
+    const gridTicks = getGridTicks(gridResolution);
+    const placed = snapToGrid ? snapTick(raw, gridTicks, 1) : raw;
+    setPatternLive(prev=>{
+      const cleaned = snapToGrid ? removeOffGridNotes(prev, gridTicks) : prev;
+      return cleaned.map((row,r)=> r===i ? row.map((v,c)=> c===placed ? vel : v) : row);
+    });
   };
 
   const clearPattern = () => setPatternLive(makePattern(16, loopBars));
