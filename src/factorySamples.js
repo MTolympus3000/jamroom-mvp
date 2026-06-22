@@ -770,13 +770,13 @@ export const FACTORY_CATEGORIES = [
       "category": "808S"
     },
     {
-      "name": "808 Biggie Biggs C#",
-      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_biggie_biggs_C#.wav",
+      "name": "808 Biggie Biggs Csharp",
+      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_biggie_biggs_Csharp.wav",
       "category": "808S"
     },
     {
-      "name": "808 Boosh G#",
-      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_boosh_G#.wav",
+      "name": "808 Boosh Gsharp",
+      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_boosh_Gsharp.wav",
       "category": "808S"
     },
     {
@@ -785,8 +785,8 @@ export const FACTORY_CATEGORIES = [
       "category": "808S"
     },
     {
-      "name": "808 Brokenspeaker C#",
-      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_brokenspeaker_C#.wav",
+      "name": "808 Brokenspeaker Csharp",
+      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_brokenspeaker_Csharp.wav",
       "category": "808S"
     },
     {
@@ -800,8 +800,8 @@ export const FACTORY_CATEGORIES = [
       "category": "808S"
     },
     {
-      "name": "808 Drrt C#",
-      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_drrt_C#.wav",
+      "name": "808 Drrt Csharp",
+      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_drrt_Csharp.wav",
       "category": "808S"
     },
     {
@@ -810,13 +810,13 @@ export const FACTORY_CATEGORIES = [
       "category": "808S"
     },
     {
-      "name": "808 Earshaker G#",
-      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_earshaker_G#.wav",
+      "name": "808 Earshaker Gsharp",
+      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_earshaker_Gsharp.wav",
       "category": "808S"
     },
     {
-      "name": "808 Essence G#",
-      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_essence_G#.wav",
+      "name": "808 Essence Gsharp",
+      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_essence_Gsharp.wav",
       "category": "808S"
     },
     {
@@ -825,13 +825,13 @@ export const FACTORY_CATEGORIES = [
       "category": "808S"
     },
     {
-      "name": "808 Firstcar D#",
-      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_firstcar_D#.wav",
+      "name": "808 Firstcar Dsharp",
+      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_firstcar_Dsharp.wav",
       "category": "808S"
     },
     {
-      "name": "808 Fixmypc D#",
-      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_fixmypc_D#.wav",
+      "name": "808 Fixmypc Dsharp",
+      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_fixmypc_Dsharp.wav",
       "category": "808S"
     },
     {
@@ -850,13 +850,13 @@ export const FACTORY_CATEGORIES = [
       "category": "808S"
     },
     {
-      "name": "808 Hood C#",
-      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_hood_C#.wav",
+      "name": "808 Hood Csharp",
+      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_hood_Csharp.wav",
       "category": "808S"
     },
     {
-      "name": "808 Introduction C#",
-      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_introduction_C#.wav",
+      "name": "808 Introduction Csharp",
+      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_introduction_Csharp.wav",
       "category": "808S"
     },
     {
@@ -900,8 +900,8 @@ export const FACTORY_CATEGORIES = [
       "category": "808S"
     },
     {
-      "name": "808 Otherside D#",
-      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_otherside_D#.wav",
+      "name": "808 Otherside Dsharp",
+      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_otherside_Dsharp.wav",
       "category": "808S"
     },
     {
@@ -920,8 +920,8 @@ export const FACTORY_CATEGORIES = [
       "category": "808S"
     },
     {
-      "name": "808 Renegade G#",
-      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_renegade_G#.wav",
+      "name": "808 Renegade Gsharp",
+      "url": "/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_renegade_Gsharp.wav",
       "category": "808S"
     },
     {
