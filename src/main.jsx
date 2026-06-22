@@ -17,7 +17,7 @@ const defaultPads = [
   { label:'Open Hat 01', short:'Open Hat\n01', category:'HATS OPEN', sample:'Open Hat 01', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_hihats/SOUTHSIDE_open_hihats/SOUTHSIDE_open_hihat_clean.wav', color:'teal' },
   { label:'Percussion 01', short:'Percussion\n01', category:'PERCUSSION', sample:'Percussion 01', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_percussion/SOUTHSIDE_percussion_sticks.wav', color:'teal' },
   { label:'Percussion 02', short:'Percussion\n02', category:'PERCUSSION', sample:'Percussion 02', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_percussion/SOUTHSIDE_percussion_it_goes_bing.wav', color:'blue' },
-  { label:'808 Earshaker', short:'808\nEarshaker', category:'808S', sample:'808 Earshaker', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_earshaker_G%23.wav', color:'purple' },
+  { label:'808 Earshaker', short:'808\nEarshaker', category:'808S', sample:'808 Earshaker', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_earshaker_Gsharp.wav', color:'purple' },
   { label:'808 Existential', short:'808\nExistential', category:'808S', sample:'808 Existential', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_existential_C.wav', color:'purple' },
   { label:'Kick Knockr', short:'Kick\nKnockr', category:'KICKS', sample:'Kick Knockr', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_kicks/SOUTHSIDE_kick_knockr.wav', color:'pink' },
   { label:'Snare 02', short:'Snare\n02', category:'SNARES', sample:'Snare 02', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_snares/SOUTHSIDE_snare_gritty.wav', color:'pink' },
@@ -176,32 +176,126 @@ function SampleBrowser({ pads, setPads, selectedPad }) {
 }
 
 function App(){
-  const [bpm,setBpm]=useState(120); const [loopBars,setLoopBars]=useState(4); const [quantize,setQuantize]=useState(75); const [swing,setSwing]=useState(55); const [metronome,setMetronome]=useState(true); const [isPlaying,setIsPlaying]=useState(false); const [isRecording,setIsRecording]=useState(false); const [currentStep,setCurrentStep]=useState(-1); const [pattern,setPattern]=useState(()=>makePattern(8,4)); const [pads,setPads]=useState(defaultPads); const [selectedPad,setSelectedPad]=useState(0); const [velocity,setVelocity]=useState(100); const [layout,setLayout]=useState('MPC'); const [resolution,setResolution]=useState('1/16'); const [bank,setBank]=useState('A'); const [noteRepeat,setNoteRepeat]=useState('1/16'); const [repeatEnabled,setRepeatEnabled]=useState(true); const [muted,setMuted]=useState({}); const [solo,setSolo]=useState({});
-  const timer = useRef(null); const stepRef = useRef(0); const { playPad, playClick } = useDrumAudio(pads);
-  useEffect(()=>{ setPattern(prev=> prev.map(row=> Array.from({length:loopBars*STEPS_PER_BAR},(_,i)=> row[i] || 0)).slice(0,8)); },[loopBars]);
+  const [bpm,setBpm]=useState(120);
+  const [loopBars,setLoopBars]=useState(4);
+  const [quantize,setQuantize]=useState(75);
+  const [swing,setSwing]=useState(55);
+  const [metronome,setMetronome]=useState(true);
+  const [isPlaying,setIsPlaying]=useState(false);
+  const [isRecording,setIsRecording]=useState(false);
+  const [currentStep,setCurrentStep]=useState(-1);
+  const [pattern,setPattern]=useState(()=>makePattern(8,4));
+  const [pads,setPads]=useState(defaultPads);
+  const [selectedPad,setSelectedPad]=useState(0);
+  const [velocity,setVelocity]=useState(100);
+  const [layout,setLayout]=useState('MPC');
+  const [resolution,setResolution]=useState('1/16');
+  const [bank,setBank]=useState('A');
+  const [noteRepeat,setNoteRepeat]=useState('1/16');
+  const [repeatEnabled,setRepeatEnabled]=useState(true);
+  const [muted,setMuted]=useState({});
+  const [solo,setSolo]=useState({});
+
+  const timer = useRef(null);
+  const stepRef = useRef(0);
+  const patternRef = useRef(pattern);
+  const padsRef = useRef(pads);
+  const mutedRef = useRef(muted);
+  const soloRef = useRef(solo);
+  const metronomeRef = useRef(metronome);
+  const isPlayingRef = useRef(isPlaying);
+  const loopBarsRef = useRef(loopBars);
+  const bpmRef = useRef(bpm);
+  const { playPad, playClick } = useDrumAudio(pads);
+
+  useEffect(()=>{ patternRef.current = pattern; }, [pattern]);
+  useEffect(()=>{ padsRef.current = pads; }, [pads]);
+  useEffect(()=>{ mutedRef.current = muted; }, [muted]);
+  useEffect(()=>{ soloRef.current = solo; }, [solo]);
+  useEffect(()=>{ metronomeRef.current = metronome; }, [metronome]);
+  useEffect(()=>{ isPlayingRef.current = isPlaying; }, [isPlaying]);
+  useEffect(()=>{ loopBarsRef.current = loopBars; }, [loopBars]);
+  useEffect(()=>{ bpmRef.current = bpm; }, [bpm]);
+
+  useEffect(()=>{
+    setPattern(prev=> {
+      const next = prev.map(row=> Array.from({length:loopBars*STEPS_PER_BAR},(_,i)=> row[i] || 0)).slice(0,8);
+      patternRef.current = next;
+      return next;
+    });
+  },[loopBars]);
+
   const playCurrentStep = (step) => {
-    const soloActive = Object.values(solo).some(Boolean);
-    pattern.forEach((row,r)=>{ if(row[step] && !muted[r] && (!soloActive || solo[r])) playPad(r, row[step]); });
-    if (metronome && step % 4 === 0) {
+    const livePattern = patternRef.current;
+    const liveMuted = mutedRef.current;
+    const liveSolo = soloRef.current;
+    const soloActive = Object.values(liveSolo).some(Boolean);
+
+    livePattern.forEach((row,r)=>{
+      if(row[step] && !liveMuted[r] && (!soloActive || liveSolo[r])) {
+        playPad(r, row[step]);
+      }
+    });
+
+    if (metronomeRef.current && step % 4 === 0) {
       playClick(step % 16 === 0);
     }
   };
+
+  const stop = (reset=true)=>{
+    if(timer.current) clearInterval(timer.current);
+    timer.current=null;
+    setIsPlaying(false);
+    isPlayingRef.current = false;
+    if(reset){
+      setCurrentStep(-1);
+      stepRef.current=0;
+    }
+  };
+
   const start = () => {
-    stop(false); setIsPlaying(true); const msPerStep = (60000 / bpm) / 4; const max = loopBars*STEPS_PER_BAR; stepRef.current = 0;
-    timer.current = setInterval(()=>{ const step=stepRef.current; setCurrentStep(step); playCurrentStep(step); stepRef.current=(step+1)%max; }, msPerStep);
+    stop(false);
+    setIsPlaying(true);
+    isPlayingRef.current = true;
+    const msPerStep = (60000 / bpmRef.current) / 4;
+    const max = loopBarsRef.current * STEPS_PER_BAR;
+    stepRef.current = 0;
+
+    const tick = () => {
+      const step = stepRef.current;
+      setCurrentStep(step);
+      playCurrentStep(step);
+      stepRef.current = (step + 1) % max;
+    };
+
+    tick(); // Play step 1 immediately instead of waiting one interval.
+    timer.current = setInterval(tick, msPerStep);
   };
-  const stop = (reset=true)=>{ if(timer.current) clearInterval(timer.current); timer.current=null; setIsPlaying(false); if(reset){setCurrentStep(-1); stepRef.current=0;} };
+
   useEffect(()=>()=>stop(),[]);
-  useEffect(()=>{ if(isPlaying){ start(); } },[bpm, loopBars]);
+  useEffect(()=>{ if(isPlayingRef.current){ start(); } },[bpm, loopBars]);
+
   const recordPad = (i, vel) => {
-    playPad(i, vel); setSelectedPad(i);
+    playPad(i, vel);
+    setSelectedPad(i);
     if(!isRecording) return;
-    const raw = currentStep >=0 ? currentStep : 0;
+
+    const max = loopBarsRef.current * STEPS_PER_BAR;
+    const raw = currentStep >= 0 ? currentStep : 0;
     const strength = quantize / 100;
-    const grid = Math.round(raw); const placed = Math.round(raw + (grid - raw) * strength);
-    setPattern(prev=>prev.map((row,r)=> r===Math.min(i,7) ? row.map((v,c)=> c===placed ? vel : v) : row));
+    const grid = Math.round(raw);
+    const placed = Math.max(0, Math.min(max - 1, Math.round(raw + (grid - raw) * strength)));
+    const rowIndex = Math.min(i, 7);
+
+    setPattern(prev=> {
+      const next = prev.map((row,r)=> r===rowIndex ? row.map((v,c)=> c===placed ? vel : v) : row);
+      patternRef.current = next; // Make the new note playable immediately on the current pass.
+      return next;
+    });
   };
+
   const wrappedPlayPad = (i, vel) => recordPad(i, vel);
+
   return <main className="app"><Transport isPlaying={isPlaying} onPlay={start} onStop={()=>stop()} isRecording={isRecording} setIsRecording={setIsRecording} bpm={bpm} setBpm={setBpm} loopBars={loopBars} setLoopBars={setLoopBars} quantize={quantize} setQuantize={setQuantize} swing={swing} setSwing={setSwing} metronome={metronome} setMetronome={setMetronome}/><Sequencer pads={pads} pattern={pattern} setPattern={setPattern} currentStep={currentStep} resolution={resolution} setResolution={setResolution} bank={bank} setBank={setBank} loopBars={loopBars} muted={muted} setMuted={setMuted} solo={solo} setSolo={setSolo}/><div className="bottom"><PadControls layout={layout} setLayout={setLayout} velocity={velocity} setVelocity={setVelocity} noteRepeat={noteRepeat} setNoteRepeat={setNoteRepeat} repeatEnabled={repeatEnabled} setRepeatEnabled={setRepeatEnabled}/><Pads pads={pads} selectedPad={selectedPad} setSelectedPad={setSelectedPad} playPad={wrappedPlayPad} velocity={velocity} layout={layout}/><SampleBrowser pads={pads} setPads={setPads} selectedPad={selectedPad}/></div></main>
 }
 
