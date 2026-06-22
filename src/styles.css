@@ -11,3 +11,15 @@
 .seqScrollBar b{position:absolute;top:3px;bottom:3px;border-radius:999px;background:linear-gradient(90deg,rgba(141,92,255,.75),rgba(177,140,255,.9));box-shadow:0 0 12px rgba(141,92,255,.35)}
 .seqArrow{position:absolute;left:5px;top:50%;transform:translateY(-52%);font-size:14px;color:#9f96b6;line-height:1;z-index:2}
 .seqArrow.right{left:auto;right:5px}
+
+/* v7: locked grid navigation */
+.seqRows {
+  overscroll-behavior: contain;
+  touch-action: none;
+  -webkit-overflow-scrolling: auto;
+}
+.stepGrid, .step, .rowName, .mpcPad, .miniTransport, .bottomNav {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}

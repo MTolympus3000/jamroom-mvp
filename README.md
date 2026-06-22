@@ -23,3 +23,9 @@ npm run dev
 ```bash
 npm run build
 ```
+
+## v7 Navigation Update
+- Added Follow Playhead toggle in Settings.
+- Sequencer grid no longer slides with one finger.
+- Use two fingers on the sequencer grid to horizontally move through the MIDI grid.
+- One-finger taps remain for adding/removing MIDI notes.

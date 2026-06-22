@@ -162,11 +162,12 @@ function MiniTransport({ isPlaying, start, stop, isRecording, requestRecord, isC
   </header>
 }
 
-function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridResolution, snapToGrid, muted, setMuted }) {
+function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridResolution, snapToGrid, muted, setMuted, followPlayhead }) {
   const totalTicks = loopBars * TICKS_PER_BAR;
   const gridTicks = getGridTicks(gridResolution);
   const columns = Math.ceil(totalTicks / gridTicks);
   const rowsRef = useRef(null);
+  const touchScrollRef = useRef({ active: false, startX: 0, startLeft: 0 });
   const [scrollInfo, setScrollInfo] = useState({ left: 0, max: 0 });
 
   const updateScrollInfo = () => {
@@ -181,6 +182,19 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
     return () => window.removeEventListener('resize', updateScrollInfo);
   }, [loopBars, gridResolution]);
 
+  useEffect(() => {
+    const el = rowsRef.current;
+    if (!el || !followPlayhead || currentStep < 0 || touchScrollRef.current.active) return;
+    const totalTicks = loopBars * TICKS_PER_BAR;
+    const ratio = currentStep / Math.max(1, totalTicks - 1);
+    const target = ratio * el.scrollWidth - el.clientWidth * 0.5;
+    const nextLeft = Math.max(0, Math.min(el.scrollWidth - el.clientWidth, target));
+    if (Math.abs(el.scrollLeft - nextLeft) > 18) {
+      el.scrollLeft = nextLeft;
+      updateScrollInfo();
+    }
+  }, [currentStep, followPlayhead, loopBars]);
+
   const jumpScroll = (event) => {
     const el = rowsRef.current;
     if (!el) return;
@@ -188,6 +202,30 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
     const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
     el.scrollLeft = (x / rect.width) * scrollInfo.max;
     updateScrollInfo();
+  };
+
+  const avgTouchX = (touches) => (touches[0].clientX + touches[1].clientX) / 2;
+  const onGridTouchStart = (event) => {
+    if (event.touches.length === 2 && rowsRef.current) {
+      touchScrollRef.current = { active: true, startX: avgTouchX(event.touches), startLeft: rowsRef.current.scrollLeft };
+      event.preventDefault();
+    }
+  };
+  const onGridTouchMove = (event) => {
+    const el = rowsRef.current;
+    if (!el) return;
+    if (touchScrollRef.current.active && event.touches.length === 2) {
+      const delta = avgTouchX(event.touches) - touchScrollRef.current.startX;
+      el.scrollLeft = touchScrollRef.current.startLeft - delta;
+      updateScrollInfo();
+      event.preventDefault();
+      return;
+    }
+    // One-finger movement should not drag the grid or slide the page while playing pads/notes.
+    if (event.touches.length === 1) event.preventDefault();
+  };
+  const onGridTouchEnd = () => {
+    touchScrollRef.current.active = false;
   };
 
   const toggleGridCell = (r, cellIndex) => {
@@ -202,7 +240,7 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
   return <section className="playSequencer">
     <div className="seqHeader"><span>SEQUENCER</span><small>{gridResolution} beat · snap {snapToGrid?'on':'off'}</small></div>
     <div className="barNumbers">{Array.from({length: loopBars}, (_, i)=><span key={i} style={{left:`${(i/loopBars)*100}%`}}>{i+1}</span>)}</div>
-    <div className="seqRows" ref={rowsRef} onScroll={updateScrollInfo}>
+    <div className="seqRows" ref={rowsRef} onScroll={updateScrollInfo} onTouchStart={onGridTouchStart} onTouchMove={onGridTouchMove} onTouchEnd={onGridTouchEnd} onTouchCancel={onGridTouchEnd}>
       {pads.map((pad, r) => <div className="seqRow" key={r}>
         <button className={`rowName ${muted[r]?'muted':''}`} onClick={()=>setMuted({...muted, [r]: !muted[r]})}><i className={pad.color}></i><b>{r+1}</b><span>{pad.label}</span></button>
         <div className="stepGrid" style={{gridTemplateColumns:`repeat(${columns}, minmax(18px, 1fr))`}}>
@@ -267,7 +305,7 @@ function SamplesPage({ pads, setPads, selectedPad, setSelectedPad }) {
   </div>
 }
 
-function SettingsPage({ bpm,setBpm,loopBars,setLoopBars,quantize,setQuantize,swing,setSwing,metronome,setMetronome,lowLatency,setLowLatency,preloadKit,loadStatus,snapToGrid,setSnapToGrid,gridResolution,setGridResolution,countInBars,setCountInBars,clearPattern,copyBar }) {
+function SettingsPage({ bpm,setBpm,loopBars,setLoopBars,quantize,setQuantize,swing,setSwing,metronome,setMetronome,lowLatency,setLowLatency,preloadKit,loadStatus,snapToGrid,setSnapToGrid,gridResolution,setGridResolution,countInBars,setCountInBars,followPlayhead,setFollowPlayhead,clearPattern,copyBar }) {
   return <div className="settingsPage pageScroll">
     <h2>Settings</h2>
     <div className="settingsGrid">
@@ -278,6 +316,7 @@ function SettingsPage({ bpm,setBpm,loopBars,setLoopBars,quantize,setQuantize,swi
       <label>Quantize Strength<input type="range" min="0" max="100" value={quantize} onChange={e=>setQuantize(Number(e.target.value))}/><b>{quantize}%</b></label>
       <label>Swing<input type="range" min="50" max="75" value={swing} onChange={e=>setSwing(Number(e.target.value))}/><b>{swing}%</b></label>
       <button className={snapToGrid?'toggle on':'toggle'} onClick={()=>setSnapToGrid(v=>!v)}>Snap To Grid {snapToGrid?'ON':'OFF'}</button>
+      <button className={followPlayhead?'toggle on':'toggle'} onClick={()=>setFollowPlayhead(v=>!v)}>Follow Playhead {followPlayhead?'ON':'OFF'}</button>
       <button className={metronome?'toggle on':'toggle'} onClick={()=>setMetronome(v=>!v)}>Metronome {metronome?'ON':'OFF'}</button>
       <button className={lowLatency?'toggle on':'toggle'} onClick={()=>setLowLatency(v=>!v)}>Low Latency {lowLatency?'ON':'OFF'}</button>
       <button className="toggle" onClick={preloadKit}>Preload Kit · {loadStatus.loaded}/{loadStatus.total}</button>
@@ -306,6 +345,7 @@ function App(){
   const [velocity]=useState(110);
   const [gridResolution,setGridResolution]=useState('1/16');
   const [snapToGrid,setSnapToGrid]=useState(true);
+  const [followPlayhead,setFollowPlayhead]=useState(false);
   const [muted,setMuted]=useState({});
   const [page,setPage]=useState('play');
   const timer = useRef(null);
@@ -448,9 +488,9 @@ function App(){
   }));
 
   return <main className="appLocked">
-    {page === 'play' && <PlayPage transport={{isPlaying,start,stop,isRecording,requestRecord,isCountingIn,bpm,loopBars,currentStep}} sequencer={{pads,pattern,setPatternLive,currentStep,loopBars,gridResolution,snapToGrid,muted,setMuted}} pads={{pads,selectedPad,setSelectedPad,onPad:recordPad,velocity}} />}
+    {page === 'play' && <PlayPage transport={{isPlaying,start,stop,isRecording,requestRecord,isCountingIn,bpm,loopBars,currentStep}} sequencer={{pads,pattern,setPatternLive,currentStep,loopBars,gridResolution,snapToGrid,muted,setMuted,followPlayhead}} pads={{pads,selectedPad,setSelectedPad,onPad:recordPad,velocity}} />}
     {page === 'samples' && <SamplesPage pads={pads} setPads={setPads} selectedPad={selectedPad} setSelectedPad={setSelectedPad}/>} 
-    {page === 'settings' && <SettingsPage bpm={bpm} setBpm={setBpm} loopBars={loopBars} setLoopBars={setLoopBars} quantize={quantize} setQuantize={setQuantize} swing={swing} setSwing={setSwing} metronome={metronome} setMetronome={setMetronome} lowLatency={lowLatency} setLowLatency={setLowLatency} preloadKit={preloadKit} loadStatus={loadStatus} snapToGrid={snapToGrid} setSnapToGrid={setSnapToGrid} gridResolution={gridResolution} setGridResolution={setGridResolution} countInBars={countInBars} setCountInBars={setCountInBars} clearPattern={clearPattern} copyBar={copyBar}/>} 
+    {page === 'settings' && <SettingsPage bpm={bpm} setBpm={setBpm} loopBars={loopBars} setLoopBars={setLoopBars} quantize={quantize} setQuantize={setQuantize} swing={swing} setSwing={setSwing} metronome={metronome} setMetronome={setMetronome} lowLatency={lowLatency} setLowLatency={setLowLatency} preloadKit={preloadKit} loadStatus={loadStatus} snapToGrid={snapToGrid} setSnapToGrid={setSnapToGrid} gridResolution={gridResolution} setGridResolution={setGridResolution} countInBars={countInBars} setCountInBars={setCountInBars} followPlayhead={followPlayhead} setFollowPlayhead={setFollowPlayhead} clearPattern={clearPattern} copyBar={copyBar}/>} 
     {(isCountingIn || countText) && <div className="countOverlay"><b>{countText}</b><span>{isCountingIn ? 'Count-In' : 'Recording'}</span></div>}
     <nav className="bottomNav">
       <button className={page==='play'?'active':''} onClick={()=>setPage('play')}><Music2 size={17}/>Play</button>
