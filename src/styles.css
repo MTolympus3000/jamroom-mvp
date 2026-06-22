@@ -376,154 +376,197 @@ button, input, select, textarea {
   .mpcOnly, .trackEditor.fixedPadEditor { min-height: 160px; }
 }
 
-/* v18-safe patch: themed sequencer D-pad + editor page buttons. Do not change v17 layout. */
-.seqHeaderDpad{
-  display:grid;
-  grid-template-columns:auto 1fr;
-  align-items:center;
-  gap:10px;
-}
-.seqHeaderDpad small{
-  justify-self:end;
-  font-size:10px;
-  color:#a99eff;
-  text-transform:uppercase;
-}
-.seqDpad{
-  width:92px;
-  height:32px;
-  display:grid;
-  grid-template-columns:24px 24px 24px;
-  grid-template-rows:15px 15px;
-  gap:2px;
-  padding:2px;
-  border-radius:12px;
-  background:linear-gradient(180deg,rgba(36,31,52,.96),rgba(17,14,25,.96));
-  border:1px solid rgba(255,255,255,.1);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 8px 18px rgba(0,0,0,.2);
-  touch-action:none;
-}
-.dpadBtn,.dpadCenter{
-  min-width:0;
-  min-height:0;
-  border-radius:7px;
-  background:#211b31;
-  border:1px solid rgba(255,255,255,.08);
-  color:#ded6ff;
-  display:grid;
-  place-items:center;
-  font-size:10px;
-  font-weight:1000;
-  line-height:1;
-  touch-action:none;
-}
-.dpadBtn:active{
-  background:linear-gradient(180deg,#9d5cff,#6d43e8);
-  color:white;
-  box-shadow:0 0 14px rgba(157,92,255,.45);
-  transform:scale(.96);
-}
-.dpadCenter{
-  background:radial-gradient(circle,rgba(167,255,223,.22),rgba(33,27,49,.9));
-}
-.dpadUp{grid-column:2;grid-row:1}
-.dpadLeft{grid-column:1;grid-row:2}
-.dpadCenter{grid-column:2;grid-row:2}
-.dpadRight{grid-column:3;grid-row:2}
-.dpadDown{grid-column:2;grid-row:2;transform:translateY(16px)}
-.dpadDown:active{transform:translateY(16px) scale(.96)}
 
-.editorTopPaged{
-  grid-template-columns:30px minmax(0,1fr) 86px 34px 30px !important;
-  gap:6px !important;
+/* v17: hard layout fix - sequencer + bottom pad/editor slot */
+.playPage {
+  display: flex !important;
+  flex-direction: column !important;
+  height: calc(100dvh - 70px) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
-.editorPageButtons{
-  height:32px;
-  display:grid;
-  grid-template-columns:24px 1fr 24px;
-  align-items:center;
-  gap:3px;
-  padding:3px;
-  border-radius:11px;
-  background:rgba(7,6,12,.55);
-  border:1px solid rgba(255,255,255,.09);
+
+.performanceArea {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
 }
-.editorPageButtons button{
-  height:24px;
-  min-width:0;
-  border-radius:8px;
-  background:#211b31;
-  border:1px solid rgba(255,255,255,.08);
-  color:#ede8ff;
-  font-size:10px;
-  font-weight:1000;
+
+.performanceArea .playSequencer {
+  flex: 0 0 45% !important;
+  height: auto !important;
+  min-height: 150px !important;
+  max-height: 45% !important;
+  overflow: hidden !important;
 }
-.editorPageButtons button:active{
-  background:linear-gradient(180deg,#ff3b8a,#9836ff);
-  color:#fff;
+
+.bottomArea {
+  flex: 1 1 55%;
+  min-height: 210px;
+  overflow: hidden;
+  display: flex;
 }
-.editorPageButtons button.disabled{
-  opacity:.35;
+
+.bottomArea .mpcOnly,
+.bottomArea .trackEditor.fixedPadEditor {
+  width: 100%;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  flex: 1 1 auto !important;
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
-.editorPageButtons span{
-  text-align:center;
-  font-size:10px;
-  font-weight:1000;
-  color:#a7ffdf;
+
+.bottomArea .mpcOnly {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
 }
-.sampleEditorGrid{
-  min-height:0;
-  height:100%;
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  grid-template-rows:minmax(62px,1fr) minmax(56px,1fr) 42px;
-  gap:8px;
-  overflow:hidden;
+
+.bottomArea .mpcPad {
+  min-height: 0 !important;
+  display: flex !important;
 }
-.sampleTrimCard{
-  grid-column:span 2;
-  min-height:0;
-  border:1px solid rgba(255,255,255,.1);
-  background:rgba(7,6,12,.55);
-  border-radius:14px;
-  padding:8px;
-  display:grid;
-  grid-template-rows:auto auto 1fr;
-  gap:5px;
+
+@media (max-height: 720px) {
+  .performanceArea .playSequencer {
+    flex-basis: 40% !important;
+    max-height: 40% !important;
+    min-height: 132px !important;
+  }
+
+  .bottomArea {
+    min-height: 170px;
+  }
 }
-.sampleTrimCard span{
-  font-size:10px;
-  letter-spacing:.12em;
-  text-transform:uppercase;
-  color:#b8aecf;
-  font-weight:1000;
+
+/* v18 safe patch: D-pad + editor page navigation only. Keeps v17 pad layout untouched. */
+.performanceArea .playSequencer {
+  grid-template-rows: 54px 14px minmax(0, 1fr) !important;
 }
-.sampleTrimCard b{
-  min-width:0;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  font-size:11px;
+
+.seqHeader.dpadHeader {
+  height: 54px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
 }
-.trimWave{
-  min-height:0;
-  display:flex;
-  align-items:center;
-  gap:2px;
-  border-radius:10px;
-  background:rgba(255,59,107,.08);
-  padding:5px;
-  overflow:hidden;
+
+.seqHeader.dpadHeader span { display: none; }
+.seqHeader.dpadHeader small {
+  justify-self: end;
+  align-self: center;
+  font-size: 10px;
+  color: #a99eff;
+  letter-spacing: .12em;
 }
-.trimWave i{
-  flex:1;
-  min-width:2px;
-  border-radius:999px;
-  background:linear-gradient(180deg,#ff6ab1,#8d5cff);
-  box-shadow:0 0 8px rgba(157,92,255,.25);
+.seqHeader small::after { content: "" !important; }
+
+.seqDpad {
+  width: 86px;
+  height: 50px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(35,30,52,.95), rgba(13,11,20,.95));
+  border: 1px solid rgba(255,255,255,.11);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 10px 22px rgba(0,0,0,.28);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3px;
+  padding: 4px;
+  touch-action: none;
 }
-@media (max-height:720px){
-  .seqDpad{width:86px;height:30px;grid-template-columns:22px 22px 22px;grid-template-rows:14px 14px}
-  .editorTopPaged{grid-template-columns:28px minmax(0,1fr) 78px 32px 28px !important}
-  .sampleEditorGrid{gap:6px;grid-template-rows:minmax(52px,1fr) minmax(46px,1fr) 38px}
+
+.seqDpad button {
+  min-width: 0;
+  min-height: 0;
+  border-radius: 8px;
+  background: #211b31;
+  border: 1px solid rgba(255,255,255,.10);
+  color: #d9d0ff;
+  font-size: 10px;
+  font-weight: 1000;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+.seqDpad button:active {
+  background: #8d5cff;
+  color: #fff;
+  transform: scale(.94);
+}
+.seqDpad .dpadUp { grid-column: 2; grid-row: 1; }
+.seqDpad .dpadLeft { grid-column: 1; grid-row: 2; }
+.seqDpad .dpadCenter { grid-column: 2; grid-row: 2; color: #a7ffdf; font-size: 8px; }
+.seqDpad .dpadRight { grid-column: 3; grid-row: 2; }
+.seqDpad .dpadDown { grid-column: 2; grid-row: 3; }
+
+.editorTopPaged {
+  grid-template-columns: 30px minmax(0, 1fr) 84px 36px 30px !important;
+}
+.editorPager {
+  height: 32px;
+  display: grid;
+  grid-template-columns: 26px 1fr 26px;
+  align-items: center;
+  gap: 3px;
+  border-radius: 11px;
+  background: rgba(141,92,255,.10);
+  border: 1px solid rgba(255,255,255,.10);
+  padding: 3px;
+}
+.editorPager button {
+  height: 24px;
+  border-radius: 8px;
+  background: #211b31;
+  border: 1px solid rgba(255,255,255,.08);
+  color: #d9d0ff;
+  font-weight: 1000;
+  font-size: 10px;
+}
+.editorPager button.active {
+  background: linear-gradient(180deg, #ff3b8a, #8d5cff);
+  color: #fff;
+}
+.editorPager span {
+  font-size: 10px;
+  color: #a7ffdf;
+  font-weight: 1000;
+  text-align: center;
+}
+
+.sampleEditorGrid {
+  grid-template-rows: 1fr 1fr 34px 1fr !important;
+}
+.editorWide { grid-column: span 2; }
+.trimPreview {
+  position: relative;
+  min-height: 34px;
+  border-radius: 12px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.06) 0 2px, transparent 2px 10px),
+    rgba(7,6,12,.56);
+  border: 1px solid rgba(255,255,255,.10);
+  overflow: hidden;
+}
+.trimPreview span {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(167,255,223,.45), rgba(157,92,255,.75));
+  box-shadow: 0 0 18px rgba(141,92,255,.35);
+}
+
+@media (max-height: 720px) {
+  .performanceArea .playSequencer { grid-template-rows: 48px 12px minmax(0,1fr) !important; }
+  .seqHeader.dpadHeader { height: 48px; }
+  .seqDpad { width: 78px; height: 44px; }
+  .editorTopPaged { grid-template-columns: 28px minmax(0, 1fr) 78px 34px 28px !important; }
 }

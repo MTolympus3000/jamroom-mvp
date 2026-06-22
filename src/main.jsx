@@ -46,6 +46,7 @@ function useDrumAudio(pads, volume = 1, lowLatency = true, maxPolyphony = 32) {
   const ctxRef = useRef(null);
   const bufferMap = useRef(new Map());
   const loadingMap = useRef(new Map());
+  const reverseBufferMap = useRef(new Map());
   const activeVoicesRef = useRef([]);
   const [activeVoices, setActiveVoices] = useState(0);
   const [loadStatus, setLoadStatus] = useState({ loaded: 0, total: 0, ready: false });
@@ -118,7 +119,22 @@ function useDrumAudio(pads, volume = 1, lowLatency = true, maxPolyphony = 32) {
     }
   };
 
+  const getPlayableBuffer = (ctx, buffer, pad) => {
+    if (!pad?.reverseSample) return buffer;
+    const key = `${pad.url || pad.label || 'buffer'}::reverse`;
+    if (reverseBufferMap.current.has(key)) return reverseBufferMap.current.get(key);
+    const reversed = ctx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+    for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+      const input = buffer.getChannelData(channel);
+      const output = reversed.getChannelData(channel);
+      for (let i = 0, j = input.length - 1; i < input.length; i++, j--) output[i] = input[j];
+    }
+    reverseBufferMap.current.set(key, reversed);
+    return reversed;
+  };
+
   const triggerBuffer = (ctx, buffer, pad, velocity = 100, when = 0) => {
+    const playableBuffer = getPlayableBuffer(ctx, buffer, pad);
     const effectiveChoke = pad?.voiceMode === 'mono' ? 1000 + (pad?.padIndex || 0) : (pad?.chokeGroup || 0);
     enforcePolyphony(effectiveChoke);
     const source = ctx.createBufferSource();
@@ -127,7 +143,17 @@ function useDrumAudio(pads, volume = 1, lowLatency = true, maxPolyphony = 32) {
     const padVol = pad?.volume ?? 1;
     const tune = pad?.tune ?? 0;
     const fine = pad?.fine ?? 0;
-    source.buffer = buffer;
+    source.buffer = playableBuffer;
+    const trimStartPct = Math.max(0, Math.min(99, pad?.trimStart ?? 0));
+    const trimEndPct = Math.max(trimStartPct + 1, Math.min(100, pad?.trimEnd ?? 100));
+    const startOffset = playableBuffer.duration * (trimStartPct / 100);
+    const endOffset = playableBuffer.duration * (trimEndPct / 100);
+    const playDuration = Math.max(0.01, endOffset - startOffset);
+    if (pad?.loopSample) {
+      source.loop = true;
+      source.loopStart = startOffset;
+      source.loopEnd = endOffset;
+    }
     source.playbackRate.value = Math.pow(2, (tune + fine / 100) / 12);
     gain.gain.value = Math.max(0.001, (velocity / 127) * volume * padVol);
     if (panNode) {
@@ -140,7 +166,7 @@ function useDrumAudio(pads, volume = 1, lowLatency = true, maxPolyphony = 32) {
     activeVoicesRef.current.push(voice);
     refreshVoiceCount();
     source.onended = () => removeVoice(voice);
-    source.start(ctx.currentTime + Math.max(0, when));
+    source.start(ctx.currentTime + Math.max(0, when), startOffset, pad?.loopSample ? undefined : playDuration);
   };
 
   const playClick = async (isDownbeat = false) => {
@@ -324,33 +350,22 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
   const visibleCount = Math.ceil(viewport.width / STEP_CELL_WIDTH) + VIRTUAL_BUFFER_COLS * 2;
   const endCol = Math.min(columns, startCol + visibleCount);
   const visibleColumns = Array.from({ length: Math.max(0, endCol - startCol) }, (_, i) => startCol + i);
-
-  const moveGrid = (direction) => {
+  const moveGrid = (cols = 0, rows = 0) => {
     const el = rowsRef.current;
     if (!el) return;
-    const rowStep = 31;
-    const colStep = STEP_CELL_WIDTH * 8;
-    if (direction === 'left') el.scrollLeft = Math.max(0, el.scrollLeft - colStep);
-    if (direction === 'right') el.scrollLeft = Math.min(el.scrollWidth - el.clientWidth, el.scrollLeft + colStep);
-    if (direction === 'up') el.scrollTop = Math.max(0, el.scrollTop - rowStep);
-    if (direction === 'down') el.scrollTop = Math.min(el.scrollHeight - el.clientHeight, el.scrollTop + rowStep);
+    el.scrollLeft = Math.max(0, el.scrollLeft + cols * STEP_CELL_WIDTH * 4);
+    el.scrollTop = Math.max(0, el.scrollTop + rows * 31);
     updateViewport();
   };
 
-  const dpadPress = (event, direction) => {
-    event.preventDefault();
-    event.stopPropagation();
-    moveGrid(direction);
-  };
-
   return <section className="playSequencer">
-    <div className="seqHeader seqHeaderDpad">
+    <div className="seqHeader dpadHeader">
       <div className="seqDpad" aria-label="Grid navigation">
-        <button className="dpadBtn dpadUp" onPointerDown={(e)=>dpadPress(e,'up')}>▲</button>
-        <button className="dpadBtn dpadLeft" onPointerDown={(e)=>dpadPress(e,'left')}>◀</button>
-        <button className="dpadCenter" type="button" tabIndex={-1}></button>
-        <button className="dpadBtn dpadRight" onPointerDown={(e)=>dpadPress(e,'right')}>▶</button>
-        <button className="dpadBtn dpadDown" onPointerDown={(e)=>dpadPress(e,'down')}>▼</button>
+        <button className="dpadUp" onPointerDown={(e)=>{e.preventDefault(); moveGrid(0,-1);}}>▲</button>
+        <button className="dpadLeft" onPointerDown={(e)=>{e.preventDefault(); moveGrid(-1,0);}}>◀</button>
+        <button className="dpadCenter" onPointerDown={(e)=>{e.preventDefault(); updateViewport();}}>●</button>
+        <button className="dpadRight" onPointerDown={(e)=>{e.preventDefault(); moveGrid(1,0);}}>▶</button>
+        <button className="dpadDown" onPointerDown={(e)=>{e.preventDefault(); moveGrid(0,1);}}>▼</button>
       </div>
       <small>{gridResolution} · snap {snapToGrid?'on':'off'}</small>
     </div>
@@ -374,9 +389,12 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
 
 function MpcPads({ pads, selectedPad, setSelectedPad, onPad, velocity }) {
   return <section className="mpcOnly">
-    {pads.map((pad, i)=><button key={i} className={`mpcPad ${pad.color} ${selectedPad===i?'selected':''}`} onPointerDown={(e)=>{e.preventDefault(); setSelectedPad(i); onPad(i, velocity);}}>
-      <span>{i+1}</span><b>{(pad.short || pad.label || 'PAD').split('\n').map((line, idx)=><React.Fragment key={line+idx}>{line}{idx===0 && <br/>}</React.Fragment>)}</b>
-    </button>)}
+    {pads.map((pad, i)=>{
+      const labelLines = (pad.short || pad.label || `PAD ${i+1}`).split('\n').slice(0,2);
+      return <button key={i} className={`mpcPad ${pad.color} ${selectedPad===i?'selected':''}`} onPointerDown={(e)=>{e.preventDefault(); setSelectedPad(i); onPad(i, velocity);}}>
+        <span>{i+1}</span><b>{labelLines.map((line, idx)=><React.Fragment key={line+idx}>{line}{idx<labelLines.length-1 && <br/>}</React.Fragment>)}</b>
+      </button>
+    })}
   </section>
 }
 
@@ -386,21 +404,15 @@ function TrackEditor({ padIndex, pads, setPads, onClose, onPreview }) {
   const pad = pads[padIndex];
   const setPadValue = (key, value) => setPads(prev => prev.map((p, i) => i === padIndex ? { ...p, [key]: value } : p));
   if (!pad) return null;
-
-  const goEditorPage = (event, direction) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setEditorPage(prev => direction === 'next' ? Math.min(1, prev + 1) : Math.max(0, prev - 1));
-  };
-
+  const pageTitle = editorPage === 0 ? 'MIX' : 'SAMPLE';
   return <section className="trackEditor fixedPadEditor">
     <div className="editorTop miniEditorTop editorTopPaged">
       <button className="backBtn" onClick={onClose}>‹</button>
-      <div className="editorTitle"><small>{editorPage === 0 ? 'PAD MIX' : 'SAMPLE EDIT'}</small><b><i className={pad.color}></i>{padIndex + 1} {pad.label}</b></div>
-      <div className="editorPageButtons">
-        <button className={editorPage===0 ? 'disabled' : ''} onPointerDown={(e)=>goEditorPage(e,'prev')}>◀</button>
+      <div className="editorTitle"><small>{pageTitle} EDITOR</small><b><i className={pad.color}></i>{padIndex + 1} {pad.label}</b></div>
+      <div className="editorPager">
+        <button onClick={()=>setEditorPage(0)} className={editorPage===0?'active':''}>◀</button>
         <span>{editorPage + 1}/2</span>
-        <button className={editorPage===1 ? 'disabled' : ''} onPointerDown={(e)=>goEditorPage(e,'next')}>▶</button>
+        <button onClick={()=>setEditorPage(1)} className={editorPage===1?'active':''}>▶</button>
       </div>
       <button className="previewBtn" onClick={() => onPreview(padIndex)}>▶</button>
       <button className="closeBtn" onClick={onClose}>×</button>
@@ -411,18 +423,15 @@ function TrackEditor({ padIndex, pads, setPads, onClose, onPreview }) {
       <label className="editorControl"><span>Pan</span><input type="range" min="-1" max="1" step="0.01" value={pad.pan ?? 0} onChange={e=>setPadValue('pan', Number(e.target.value))}/><b>{(pad.pan ?? 0) === 0 ? 'C' : (pad.pan ?? 0) < 0 ? 'L' : 'R'}</b></label>
       <label className="editorControl"><span>Pitch</span><input type="range" min="-24" max="24" step="1" value={pad.tune ?? 0} onChange={e=>setPadValue('tune', Number(e.target.value))}/><b>{pad.tune ?? 0} st</b></label>
       <label className="editorControl"><span>Fine</span><input type="range" min="-100" max="100" step="1" value={pad.fine ?? 0} onChange={e=>setPadValue('fine', Number(e.target.value))}/><b>{pad.fine ?? 0} ct</b></label>
+
       <div className="editorSelectRow"><span>Choke</span><select value={pad.chokeGroup ?? 0} onChange={e=>setPadValue('chokeGroup', Number(e.target.value))}>{[0,1,2,3,4,5,6,7,8].map(g=><option key={g} value={g}>{g===0?'Off':`Group ${g}`}</option>)}</select></div>
       <div className="editorSelectRow"><span>Voice</span><select value={pad.voiceMode || 'poly'} onChange={e=>setPadValue('voiceMode', e.target.value)}>{['poly','mono'].map(mode=><option key={mode} value={mode}>{mode}</option>)}</select></div>
       <div className="editorActionRow"><button className={pad.mute?'active':''} onClick={()=>setPadValue('mute', !pad.mute)}>Mute</button><button className={pad.solo?'active':''} onClick={()=>setPadValue('solo', !pad.solo)}>Solo</button><button onClick={onClose}>Close</button></div>
-    </div> : <div className="sampleEditorGrid">
-      <div className="sampleTrimCard">
-        <span>Sample</span>
-        <b>{pad.sample || pad.label}</b>
-        <div className="trimWave" aria-hidden="true">{Array.from({length:34},(_,i)=><i key={i} style={{height:`${18 + ((i*17)%46)}%`}} />)}</div>
-      </div>
-      <label className="editorControl"><span>Start</span><input type="range" min="0" max="95" step="1" value={pad.trimStart ?? 0} onChange={e=>setPadValue('trimStart', Number(e.target.value))}/><b>{pad.trimStart ?? 0}%</b></label>
-      <label className="editorControl"><span>End</span><input type="range" min="5" max="100" step="1" value={pad.trimEnd ?? 100} onChange={e=>setPadValue('trimEnd', Number(e.target.value))}/><b>{pad.trimEnd ?? 100}%</b></label>
-      <div className="editorActionRow"><button className={pad.loopSample?'active':''} onClick={()=>setPadValue('loopSample', !pad.loopSample)}>Loop</button><button className={pad.reverse?'active':''} onClick={()=>setPadValue('reverse', !pad.reverse)}>Reverse</button><button onClick={() => onPreview(padIndex)}>Preview</button></div>
+    </div> : <div className="minimalEditorGrid sampleEditorGrid">
+      <label className="editorControl editorWide"><span>Start</span><input type="range" min="0" max="95" step="1" value={pad.trimStart ?? 0} onChange={e=>setPadValue('trimStart', Math.min(Number(e.target.value), (pad.trimEnd ?? 100)-1))}/><b>{pad.trimStart ?? 0}%</b></label>
+      <label className="editorControl editorWide"><span>End</span><input type="range" min="5" max="100" step="1" value={pad.trimEnd ?? 100} onChange={e=>setPadValue('trimEnd', Math.max(Number(e.target.value), (pad.trimStart ?? 0)+1))}/><b>{pad.trimEnd ?? 100}%</b></label>
+      <div className="trimPreview editorWide"><span style={{left:`${pad.trimStart ?? 0}%`, width:`${Math.max(2,(pad.trimEnd ?? 100)-(pad.trimStart ?? 0))}%`}} /></div>
+      <div className="editorActionRow"><button className={pad.loopSample?'active':''} onClick={()=>setPadValue('loopSample', !pad.loopSample)}>Loop</button><button className={pad.reverseSample?'active':''} onClick={()=>setPadValue('reverseSample', !pad.reverseSample)}>Reverse</button><button onClick={()=>onPreview(padIndex)}>Preview</button></div>
     </div>}
   </section>
 }
@@ -531,7 +540,11 @@ function App(){
   const bpmRef = useRef(bpm);
   const stateRef = useRef({ muted, metronome, loopBars });
   const { playPad, playClick, preloadKit, loadStatus, activeVoices } = useDrumAudio(pads, 1, lowLatency, maxPolyphony);
+  const padsRef = useRef(pads);
+  const playPadRef = useRef(playPad);
 
+  useEffect(()=>{ padsRef.current = pads; },[pads]);
+  useEffect(()=>{ playPadRef.current = playPad; },[playPad]);
   useEffect(()=>{ patternRef.current = pattern; },[pattern]);
   useEffect(()=>{ currentStepRef.current = currentStep; },[currentStep]);
   useEffect(()=>{ bpmRef.current = bpm; },[bpm]);
@@ -558,13 +571,14 @@ function App(){
 
   const playStep = (step) => {
     const pat = patternRef.current;
+    const padsNow = padsRef.current;
     const { muted: mutedNow, metronome: metroNow } = stateRef.current;
-    const anySolo = pads.some(p => p.solo);
+    const anySolo = padsNow.some(p => p.solo);
     for (let r=0; r<pat.length; r++) {
       const velocityAtStep = pat[r]?.[step] || 0;
-      const pad = pads[r];
+      const pad = padsNow[r];
       const blocked = mutedNow[r] || pad?.mute || (anySolo && !pad?.solo);
-      if (velocityAtStep && !blocked) playPad(r, velocityAtStep);
+      if (velocityAtStep && !blocked) playPadRef.current(r, velocityAtStep);
     }
     if (metroNow && step % 24 === 0) playClick(step % TICKS_PER_BAR === 0);
   };
