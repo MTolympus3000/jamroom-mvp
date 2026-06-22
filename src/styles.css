@@ -376,193 +376,187 @@ button, input, select, textarea {
   .mpcOnly, .trackEditor.fixedPadEditor { min-height: 160px; }
 }
 
-/* v18: long-press one-finger sequencer pan */
-.seqHeader small::after{
-  content:"" !important;
+
+/* v21: themed D-pad + two-page editor + realtime pad settings */
+.transportBlank {
+  min-width: 106px;
+  height: 100%;
+  border-radius: 11px;
+  background: linear-gradient(180deg, rgba(35,31,50,.72), rgba(13,11,20,.46));
+  border: 1px solid rgba(255,255,255,.06);
+  opacity: .65;
 }
-.seqRows.holdPanning{
-  cursor: grab;
+
+.playSequencer {
+  position: relative;
+  grid-template-rows: 62px 16px 1fr;
 }
-.seqRows.holdPanning .step{
-  pointer-events: auto;
+
+.seqHeader {
+  min-height: 62px;
+  align-items: start;
 }
-.step{
+
+.seqHeader small {
+  justify-self: end;
+  align-self: center;
+  padding-right: 2px;
+}
+
+.gridDpad {
+  width: 122px;
+  height: 58px;
+  display: grid;
+  grid-template-columns: repeat(3, 34px);
+  grid-template-rows: repeat(3, 18px);
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(141,92,255,.22), transparent 56%),
+    linear-gradient(180deg, rgba(37,32,52,.92), rgba(17,14,25,.88));
+  border: 1px solid rgba(157,92,255,.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 12px 28px rgba(0,0,0,.24);
+  padding: 4px;
   touch-action: none;
 }
 
+.gridDpad button {
+  width: 34px;
+  height: 18px;
+  min-height: 18px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(51,44,72,.96), rgba(28,23,42,.96));
+  border: 1px solid rgba(177,140,255,.24);
+  color: #b996ff;
+  font-weight: 1000;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
 
+.gridDpad button:active {
+  transform: translateY(1px);
+  background: linear-gradient(180deg, #8d5cff, #5635c9);
+  color: white;
+  box-shadow: 0 0 18px rgba(141,92,255,.42);
+}
 
-/* v20: explicit grid navigation buttons + paged fixed editor */
-.seqHeader {
-  gap: 8px;
+.miniEditorTop {
+  grid-template-columns: 32px minmax(0, 1fr) 126px 32px;
 }
-.seqHeaderTools {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-.seqHeaderTools small {
-  white-space: nowrap;
-}
-.seqHeader small::after {
-  content: "" !important;
-}
-.gridDpad {
-  width: 84px;
+
+.editorPageNav {
   height: 34px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-  gap: 2px;
-  flex: 0 0 auto;
+  grid-template-columns: 34px 1fr 34px;
+  gap: 7px;
+  align-items: center;
 }
-.gridDpad button {
-  min-width: 0;
-  min-height: 0;
-  border-radius: 7px;
-  background: #211b31;
-  border: 1px solid rgba(255,255,255,.1);
-  color: #ede8ff;
-  font-size: 13px;
+
+.editorPageNav button {
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(51,44,72,.96), rgba(28,23,42,.96));
+  border: 1px solid rgba(177,140,255,.24);
+  color: #f3edff;
+  font-size: 21px;
   font-weight: 1000;
   display: grid;
   place-items: center;
-  touch-action: none;
 }
-.gridDpad button:nth-child(1) { grid-column: 2; grid-row: 1; }
-.gridDpad button:nth-child(2) { grid-column: 1; grid-row: 2; }
-.gridDpad button:nth-child(3) { grid-column: 3; grid-row: 2; }
-.gridDpad button:nth-child(4) { grid-column: 2; grid-row: 2; }
-.gridDpad button:active {
-  background: #8d5cff;
-  color: white;
-}
-.performanceArea {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow: hidden;
-}
-.performanceArea .playSequencer {
-  flex: 0 0 45%;
-  min-height: 150px;
-  max-height: 45%;
-}
-.bottomArea {
-  flex: 1 1 auto;
-  min-height: 190px;
-  display: flex;
-  overflow: hidden;
-}
-.bottomArea .mpcOnly,
-.bottomArea .trackEditor.fixedPadEditor {
-  width: 100%;
-  height: 100%;
-  flex: 1 1 auto;
-}
-.editorTopPaged {
-  grid-template-columns: 32px minmax(0,1fr) 32px 42px 32px 32px;
-  gap: 6px;
-}
-.editorPageBtn {
-  height: 32px;
-  border-radius: 10px;
-  background: #211b31;
-  border: 1px solid rgba(255,255,255,.1);
+
+.editorPageNav b {
+  color: #b996ff;
+  font-size: 12px;
   font-weight: 1000;
-  color: #fff;
-  font-size: 16px;
+  letter-spacing: .12em;
+  text-align: center;
 }
-.editorPageBtn:active {
-  background: #8d5cff;
-}
+
 .trimEditorGrid {
   min-height: 0;
   height: 100%;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: minmax(74px, 1.1fr) minmax(44px,.7fr) minmax(44px,.7fr) minmax(44px,.7fr);
+  grid-template-rows: minmax(70px, 1.25fr) minmax(68px, .85fr) minmax(56px, .75fr);
   gap: 8px;
   overflow: hidden;
 }
-.trimWaveCard {
-  grid-column: span 2;
-  min-height: 0;
-  border: 1px solid rgba(255,255,255,.1);
-  background: rgba(7,6,12,.55);
-  border-radius: 14px;
-  padding: 8px;
-  display: grid;
-  grid-template-rows: 18px 1fr;
-  gap: 6px;
-}
-.trimReadout {
-  display: flex;
-  justify-content: space-between;
-  color: #b8aecf;
-  font-size: 10px;
-  font-weight: 1000;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-.trimReadout b { color: white; }
+
 .trimWave {
+  grid-column: span 2;
   position: relative;
-  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.1);
+  background:
+    radial-gradient(circle at 18% 50%, rgba(157,92,255,.24), transparent 42%),
+    rgba(7,6,12,.55);
+  border-radius: 14px;
+  padding: 10px 14px;
+}
+
+.fakeWave {
+  height: 100%;
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 8px 10px;
-  overflow: hidden;
-  border-radius: 12px;
-  background: linear-gradient(90deg, rgba(255,59,107,.08), rgba(141,92,255,.08));
 }
-.trimWave span {
-  width: 3px;
-  flex: 1 1 auto;
-  max-width: 7px;
+
+.fakeWave i {
+  flex: 1;
   min-width: 2px;
+  max-width: 5px;
   border-radius: 999px;
-  background: #b18cff;
-  opacity: .9;
-  box-shadow: 0 0 8px rgba(177,140,255,.35);
+  background: linear-gradient(180deg, #c2a2ff, #744cff);
+  box-shadow: 0 0 8px rgba(141,92,255,.24);
 }
-.trimWave i,
-.trimWave strong {
+
+.trimHandle {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
-  width: 3px;
+  top: 10px;
+  bottom: 10px;
+  width: 7px;
   border-radius: 999px;
-  background: #ff3b8a;
-  z-index: 3;
-  transform: translateX(-1px);
-  box-shadow: 0 0 14px rgba(255,59,138,.6);
+  background: linear-gradient(180deg, #9d5cff, #c2a2ff);
+  box-shadow: 0 0 18px rgba(157,92,255,.55);
+  z-index: 2;
 }
-.trimWave strong { background: #a7ffdf; box-shadow: 0 0 14px rgba(167,255,223,.55); }
-.trimWave em {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: rgba(141,92,255,.16);
-  z-index: 1;
-  pointer-events: none;
-}
-.trimWave span { position: relative; z-index: 2; }
-.wideControl {
-  grid-column: span 2;
-}
+
+.trimHandle.left { left: 12px; }
+.trimHandle.right { right: 12px; }
+
 .trimActions {
   grid-column: span 2;
 }
-@media (max-width:430px){
-  .seqHeaderTools { gap: 5px; }
-  .seqHeaderTools small { font-size: 9px; }
-  .gridDpad { width: 74px; height: 32px; }
-  .gridDpad button { font-size: 12px; border-radius: 6px; }
-  .editorTopPaged { grid-template-columns: 30px minmax(0,1fr) 30px 38px 30px 30px; gap: 4px; }
-  .trimEditorGrid { gap: 6px; }
+
+.trimActions button {
+  min-height: 48px;
+}
+
+@media (max-height: 720px) {
+  .playSequencer {
+    grid-template-rows: 54px 14px 1fr;
+  }
+  .gridDpad {
+    width: 108px;
+    height: 50px;
+    grid-template-columns: repeat(3, 30px);
+    grid-template-rows: repeat(3, 15px);
+  }
+  .gridDpad button {
+    width: 30px;
+    height: 15px;
+    min-height: 15px;
+    font-size: 12px;
+  }
+  .miniEditorTop {
+    grid-template-columns: 30px minmax(0, 1fr) 108px 30px;
+  }
+  .editorPageNav {
+    grid-template-columns: 30px 1fr 30px;
+    gap: 5px;
+  }
 }
