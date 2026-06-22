@@ -376,16 +376,68 @@ button, input, select, textarea {
   .mpcOnly, .trackEditor.fixedPadEditor { min-height: 160px; }
 }
 
-
-/* v17: hard layout fix - sequencer + bottom pad/editor slot */
-.playPage {
-  display: flex !important;
-  flex-direction: column !important;
-  height: calc(100dvh - 70px) !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
+/* v18: long-press one-finger sequencer pan */
+.seqHeader small::after{
+  content:"" !important;
+}
+.seqRows.holdPanning{
+  cursor: grab;
+}
+.seqRows.holdPanning .step{
+  pointer-events: auto;
+}
+.step{
+  touch-action: none;
 }
 
+
+
+/* v20: explicit grid navigation buttons + paged fixed editor */
+.seqHeader {
+  gap: 8px;
+}
+.seqHeaderTools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.seqHeaderTools small {
+  white-space: nowrap;
+}
+.seqHeader small::after {
+  content: "" !important;
+}
+.gridDpad {
+  width: 84px;
+  height: 34px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 2px;
+  flex: 0 0 auto;
+}
+.gridDpad button {
+  min-width: 0;
+  min-height: 0;
+  border-radius: 7px;
+  background: #211b31;
+  border: 1px solid rgba(255,255,255,.1);
+  color: #ede8ff;
+  font-size: 13px;
+  font-weight: 1000;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+}
+.gridDpad button:nth-child(1) { grid-column: 2; grid-row: 1; }
+.gridDpad button:nth-child(2) { grid-column: 1; grid-row: 2; }
+.gridDpad button:nth-child(3) { grid-column: 3; grid-row: 2; }
+.gridDpad button:nth-child(4) { grid-column: 2; grid-row: 2; }
+.gridDpad button:active {
+  background: #8d5cff;
+  color: white;
+}
 .performanceArea {
   flex: 1 1 auto;
   min-height: 0;
@@ -394,52 +446,123 @@ button, input, select, textarea {
   gap: 8px;
   overflow: hidden;
 }
-
 .performanceArea .playSequencer {
-  flex: 0 0 45% !important;
-  height: auto !important;
-  min-height: 150px !important;
-  max-height: 45% !important;
-  overflow: hidden !important;
+  flex: 0 0 45%;
+  min-height: 150px;
+  max-height: 45%;
 }
-
 .bottomArea {
-  flex: 1 1 55%;
-  min-height: 210px;
-  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 190px;
   display: flex;
+  overflow: hidden;
 }
-
 .bottomArea .mpcOnly,
 .bottomArea .trackEditor.fixedPadEditor {
   width: 100%;
-  height: 100% !important;
-  min-height: 0 !important;
-  max-height: none !important;
-  flex: 1 1 auto !important;
-  display: grid !important;
-  visibility: visible !important;
-  opacity: 1 !important;
+  height: 100%;
+  flex: 1 1 auto;
 }
-
-.bottomArea .mpcOnly {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(4, minmax(0, 1fr));
+.editorTopPaged {
+  grid-template-columns: 32px minmax(0,1fr) 32px 42px 32px 32px;
+  gap: 6px;
 }
-
-.bottomArea .mpcPad {
-  min-height: 0 !important;
-  display: flex !important;
+.editorPageBtn {
+  height: 32px;
+  border-radius: 10px;
+  background: #211b31;
+  border: 1px solid rgba(255,255,255,.1);
+  font-weight: 1000;
+  color: #fff;
+  font-size: 16px;
 }
-
-@media (max-height: 720px) {
-  .performanceArea .playSequencer {
-    flex-basis: 40% !important;
-    max-height: 40% !important;
-    min-height: 132px !important;
-  }
-
-  .bottomArea {
-    min-height: 170px;
-  }
+.editorPageBtn:active {
+  background: #8d5cff;
+}
+.trimEditorGrid {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: minmax(74px, 1.1fr) minmax(44px,.7fr) minmax(44px,.7fr) minmax(44px,.7fr);
+  gap: 8px;
+  overflow: hidden;
+}
+.trimWaveCard {
+  grid-column: span 2;
+  min-height: 0;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(7,6,12,.55);
+  border-radius: 14px;
+  padding: 8px;
+  display: grid;
+  grid-template-rows: 18px 1fr;
+  gap: 6px;
+}
+.trimReadout {
+  display: flex;
+  justify-content: space-between;
+  color: #b8aecf;
+  font-size: 10px;
+  font-weight: 1000;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.trimReadout b { color: white; }
+.trimWave {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 10px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(255,59,107,.08), rgba(141,92,255,.08));
+}
+.trimWave span {
+  width: 3px;
+  flex: 1 1 auto;
+  max-width: 7px;
+  min-width: 2px;
+  border-radius: 999px;
+  background: #b18cff;
+  opacity: .9;
+  box-shadow: 0 0 8px rgba(177,140,255,.35);
+}
+.trimWave i,
+.trimWave strong {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 999px;
+  background: #ff3b8a;
+  z-index: 3;
+  transform: translateX(-1px);
+  box-shadow: 0 0 14px rgba(255,59,138,.6);
+}
+.trimWave strong { background: #a7ffdf; box-shadow: 0 0 14px rgba(167,255,223,.55); }
+.trimWave em {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(141,92,255,.16);
+  z-index: 1;
+  pointer-events: none;
+}
+.trimWave span { position: relative; z-index: 2; }
+.wideControl {
+  grid-column: span 2;
+}
+.trimActions {
+  grid-column: span 2;
+}
+@media (max-width:430px){
+  .seqHeaderTools { gap: 5px; }
+  .seqHeaderTools small { font-size: 9px; }
+  .gridDpad { width: 74px; height: 32px; }
+  .gridDpad button { font-size: 12px; border-radius: 6px; }
+  .editorTopPaged { grid-template-columns: 30px minmax(0,1fr) 30px 38px 30px 30px; gap: 4px; }
+  .trimEditorGrid { gap: 6px; }
 }
