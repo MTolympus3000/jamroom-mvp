@@ -22,28 +22,30 @@ const removeOffGridNotes = (pattern, gridTicks) =>
 const makePattern = (rows, bars) => Array.from({length: rows}, () => Array.from({length: bars * TICKS_PER_BAR}, () => 0));
 
 const defaultPads = [
-  { label:'Kick Dirty Club', short:'KICK\nDIRTY', category:'KICKS', sample:'Kick Dirty Club', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_kicks/SOUTHSIDE_kick_dirty_club.wav', color:'red' },
-  { label:'Kick Super Club', short:'KICK\nSUPER', category:'KICKS', sample:'Kick Super Club', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_kicks/SOUTHSIDE_kick_super_club.wav', color:'red' },
-  { label:'Snare Trap Knock', short:'SNARE\nKNOCK', category:'SNARES', sample:'Snare Trap Knock', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_snares/SOUTHSIDE_snare_trap_knock.wav', color:'orange' },
-  { label:'Clap Club', short:'CLAP\nCLUB', category:'CLAPS', sample:'Clap Club', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_claps/SOUTHSIDE_clap_club.wav', color:'yellow' },
-  { label:'Hat Clean', short:'HAT\nCLEAN', category:'HATS CLOSED', sample:'Hat Clean', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_hihats/SOUTHSIDE_closed_hihats/SOUTHSIDE_hihat_clean.wav', color:'green' },
-  { label:'Open Hat Clean', short:'OPEN\nHAT', category:'HATS OPEN', sample:'Open Hat Clean', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_hihats/SOUTHSIDE_open_hihats/SOUTHSIDE_open_hihat_clean.wav', color:'teal' },
-  { label:'Perc Sticks', short:'PERC\nSTICKS', category:'PERCUSSION', sample:'Perc Sticks', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_percussion/SOUTHSIDE_percussion_sticks.wav', color:'blue' },
-  { label:'Perc Bing', short:'PERC\nBING', category:'PERCUSSION', sample:'Perc Bing', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_percussion/SOUTHSIDE_percussion_it_goes_bing.wav', color:'blue' },
-  { label:'808 Earshaker', short:'808\nEAR', category:'808S', sample:'808 Earshaker', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_earshaker_Gsharp.wav', color:'purple' },
-  { label:'808 Existential', short:'808\nEXIST', category:'808S', sample:'808 Existential', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_existential_C.wav', color:'purple' },
-  { label:'Kick Knockr', short:'KICK\nKNOCKR', category:'KICKS', sample:'Kick Knockr', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_kicks/SOUTHSIDE_kick_knockr.wav', color:'pink' },
-  { label:'Snare Gritty', short:'SNARE\nGRITTY', category:'SNARES', sample:'Snare Gritty', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_snares/SOUTHSIDE_snare_gritty.wav', color:'pink' },
-  { label:'Clap Room', short:'CLAP\nROOM', category:'CLAPS', sample:'Clap Room', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_claps/SOUTHSIDE_clap_room.wav', color:'orange' },
-  { label:'Hat MPC Vibe', short:'HAT\nMPC', category:'HATS CLOSED', sample:'Hat MPC Vibe', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_hihats/SOUTHSIDE_closed_hihats/SOUTHSIDE_hihat_mpc_vibe.wav', color:'yellow' },
-  { label:'Perc Pull Up', short:'PERC\nPULL', category:'PERCUSSION', sample:'Perc Pull Up', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_percussion/SOUTHSIDE_percussion_pull_up.wav', color:'green' },
-  { label:'User Sample', short:'USER\nSAMPLE', category:'USER', sample:'Empty', url:null, color:'gray' },
+  { label:'Kick Dirty Club', short:'KICK\nDIRTY', category:'KICKS', sample:'Kick Dirty Club', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_kicks/SOUTHSIDE_kick_dirty_club.wav', color:'red', chokeGroup:0 },
+  { label:'Kick Super Club', short:'KICK\nSUPER', category:'KICKS', sample:'Kick Super Club', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_kicks/SOUTHSIDE_kick_super_club.wav', color:'red', chokeGroup:0 },
+  { label:'Snare Trap Knock', short:'SNARE\nKNOCK', category:'SNARES', sample:'Snare Trap Knock', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_snares/SOUTHSIDE_snare_trap_knock.wav', color:'orange', chokeGroup:0 },
+  { label:'Clap Club', short:'CLAP\nCLUB', category:'CLAPS', sample:'Clap Club', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_claps/SOUTHSIDE_clap_club.wav', color:'yellow', chokeGroup:0 },
+  { label:'Hat Clean', short:'HAT\nCLEAN', category:'HATS CLOSED', sample:'Hat Clean', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_hihats/SOUTHSIDE_closed_hihats/SOUTHSIDE_hihat_clean.wav', color:'green', chokeGroup:1 },
+  { label:'Open Hat Clean', short:'OPEN\nHAT', category:'HATS OPEN', sample:'Open Hat Clean', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_hihats/SOUTHSIDE_open_hihats/SOUTHSIDE_open_hihat_clean.wav', color:'teal', chokeGroup:1 },
+  { label:'Perc Sticks', short:'PERC\nSTICKS', category:'PERCUSSION', sample:'Perc Sticks', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_percussion/SOUTHSIDE_percussion_sticks.wav', color:'blue', chokeGroup:0 },
+  { label:'Perc Bing', short:'PERC\nBING', category:'PERCUSSION', sample:'Perc Bing', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_percussion/SOUTHSIDE_percussion_it_goes_bing.wav', color:'blue', chokeGroup:0 },
+  { label:'808 Earshaker', short:'808\nEAR', category:'808S', sample:'808 Earshaker', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_earshaker_Gsharp.wav', color:'purple', chokeGroup:2 },
+  { label:'808 Existential', short:'808\nEXIST', category:'808S', sample:'808 Existential', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_808s/SOUTHSIDE_808_existential_C.wav', color:'purple', chokeGroup:2 },
+  { label:'Kick Knockr', short:'KICK\nKNOCKR', category:'KICKS', sample:'Kick Knockr', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_kicks/SOUTHSIDE_kick_knockr.wav', color:'pink', chokeGroup:0 },
+  { label:'Snare Gritty', short:'SNARE\nGRITTY', category:'SNARES', sample:'Snare Gritty', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_snares/SOUTHSIDE_snare_gritty.wav', color:'pink', chokeGroup:0 },
+  { label:'Clap Room', short:'CLAP\nROOM', category:'CLAPS', sample:'Clap Room', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_claps/SOUTHSIDE_clap_room.wav', color:'orange', chokeGroup:0 },
+  { label:'Hat MPC Vibe', short:'HAT\nMPC', category:'HATS CLOSED', sample:'Hat MPC Vibe', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_hihats/SOUTHSIDE_closed_hihats/SOUTHSIDE_hihat_mpc_vibe.wav', color:'yellow', chokeGroup:1 },
+  { label:'Perc Pull Up', short:'PERC\nPULL', category:'PERCUSSION', sample:'Perc Pull Up', url:'/factory/SOUTHSIDE_drums/SOUTHSIDE_percussion/SOUTHSIDE_percussion_pull_up.wav', color:'green', chokeGroup:0 },
+  { label:'User Sample', short:'USER\nSAMPLE', category:'USER', sample:'Empty', url:null, color:'gray', chokeGroup:0 },
 ];
 
-function useDrumAudio(pads, volume = 1, lowLatency = true) {
+function useDrumAudio(pads, volume = 1, lowLatency = true, maxPolyphony = 32) {
   const ctxRef = useRef(null);
   const bufferMap = useRef(new Map());
   const loadingMap = useRef(new Map());
+  const activeVoicesRef = useRef([]);
+  const [activeVoices, setActiveVoices] = useState(0);
   const [loadStatus, setLoadStatus] = useState({ loaded: 0, total: 0, ready: false });
 
   const ensureContext = async () => {
@@ -86,12 +88,45 @@ function useDrumAudio(pads, volume = 1, lowLatency = true) {
     setLoadStatus(prev => ({ ...prev, total, loaded: [...bufferMap.current.keys()].filter(url => pads.some(p => p.url === url)).length }));
   }, [pads]);
 
-  const triggerBuffer = (ctx, buffer, velocity = 100, when = 0) => {
+  const refreshVoiceCount = () => setActiveVoices(activeVoicesRef.current.length);
+  const removeVoice = (voice) => {
+    activeVoicesRef.current = activeVoicesRef.current.filter(v => v !== voice);
+    refreshVoiceCount();
+  };
+  const stopVoice = (voice) => {
+    try {
+      const now = ctxRef.current?.currentTime || 0;
+      voice.gain?.gain?.cancelScheduledValues(now);
+      voice.gain?.gain?.setValueAtTime(Math.max(0.0001, voice.gain.gain.value || 0.0001), now);
+      voice.gain?.gain?.exponentialRampToValueAtTime(0.0001, now + 0.015);
+      voice.source?.stop(now + 0.018);
+    } catch {}
+    removeVoice(voice);
+  };
+  const enforcePolyphony = (chokeGroup = 0) => {
+    if (chokeGroup > 0) {
+      activeVoicesRef.current
+        .filter(v => v.chokeGroup === chokeGroup)
+        .forEach(stopVoice);
+    }
+    while (activeVoicesRef.current.length >= maxPolyphony) {
+      const oldest = activeVoicesRef.current[0];
+      if (!oldest) break;
+      stopVoice(oldest);
+    }
+  };
+
+  const triggerBuffer = (ctx, buffer, velocity = 100, when = 0, chokeGroup = 0) => {
+    enforcePolyphony(chokeGroup);
     const source = ctx.createBufferSource();
     const gain = ctx.createGain();
     gain.gain.value = Math.max(0.02, (velocity / 127) * volume);
     source.buffer = buffer;
     source.connect(gain).connect(ctx.destination);
+    const voice = { source, gain, startedAt: ctx.currentTime, chokeGroup };
+    activeVoicesRef.current.push(voice);
+    refreshVoiceCount();
+    source.onended = () => removeVoice(voice);
     source.start(ctx.currentTime + Math.max(0, when));
   };
 
@@ -112,6 +147,7 @@ function useDrumAudio(pads, volume = 1, lowLatency = true) {
   };
 
   const playFallback = async (pad, velocity = 100) => {
+    enforcePolyphony(pad?.chokeGroup || 0);
     const ctx = await ensureContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -130,14 +166,14 @@ function useDrumAudio(pads, volume = 1, lowLatency = true) {
     const ctx = ctxRef.current;
     const cached = pad.url ? bufferMap.current.get(pad.url) : null;
     if (ctx && cached) {
-      triggerBuffer(ctx, cached, velocity, when);
+      triggerBuffer(ctx, cached, velocity, when, pad.chokeGroup || 0);
       return;
     }
     (async () => {
       try {
         const activeCtx = await ensureContext();
         const buffer = await loadBuffer(pad);
-        if (buffer) triggerBuffer(activeCtx, buffer, velocity, when);
+        if (buffer) triggerBuffer(activeCtx, buffer, velocity, when, pad.chokeGroup || 0);
         else await playFallback(pad, velocity);
       } catch {
         await playFallback(pad, velocity);
@@ -145,7 +181,7 @@ function useDrumAudio(pads, volume = 1, lowLatency = true) {
     })();
   };
 
-  return { playPad, playClick, preloadKit, loadStatus };
+  return { playPad, playClick, preloadKit, loadStatus, activeVoices };
 }
 
 function MiniTransport({ isPlaying, start, stop, isRecording, requestRecord, isCountingIn, bpm, loopBars, currentStep }) {
@@ -347,6 +383,11 @@ function SamplesPage({ pads, setPads, selectedPad, setSelectedPad }) {
     <h2>Samples</h2>
     <div className="selectedInfo">Assigning to pad <b>{selectedPad+1}</b>: {pads[selectedPad]?.label}</div>
     <div className="padSelectMini">{pads.map((p,i)=><button key={i} className={selectedPad===i?'active':''} onClick={()=>setSelectedPad(i)}>{i+1}</button>)}</div>
+    <label className="padSetting">Choke Group
+      <select value={pads[selectedPad]?.chokeGroup || 0} onChange={e=>setPads(prev=>prev.map((p,i)=>i===selectedPad?{...p,chokeGroup:Number(e.target.value)}:p))}>
+        {[0,1,2,3,4,5,6,7,8].map(g=><option key={g} value={g}>{g===0?'Off':`Group ${g}`}</option>)}
+      </select>
+    </label>
     <label className="import"><UploadCloud size={20}/><span>Import Sample</span><input type="file" accept="audio/*,.wav,.mp3,.aiff" onChange={e=>importSample(e.target.files?.[0])}/></label>
     <div className="search"><input placeholder="Search factory sounds..." value={query} onChange={e=>setQuery(e.target.value)}/><Search size={18}/></div>
     {cats.map(cat => <div className="catBlock" key={cat.name}>
@@ -357,13 +398,15 @@ function SamplesPage({ pads, setPads, selectedPad, setSelectedPad }) {
   </div>
 }
 
-function SettingsPage({ bpm,setBpm,loopBars,setLoopBars,quantize,setQuantize,swing,setSwing,metronome,setMetronome,lowLatency,setLowLatency,preloadKit,loadStatus,snapToGrid,setSnapToGrid,gridResolution,setGridResolution,countInBars,setCountInBars,followPlayhead,setFollowPlayhead,clearPattern,copyBar }) {
+function SettingsPage({ bpm,setBpm,loopBars,setLoopBars,quantize,setQuantize,swing,setSwing,metronome,setMetronome,lowLatency,setLowLatency,preloadKit,loadStatus,snapToGrid,setSnapToGrid,gridResolution,setGridResolution,countInBars,setCountInBars,followPlayhead,setFollowPlayhead,maxPolyphony,setMaxPolyphony,activeVoices,clearPattern,copyBar }) {
   return <div className="settingsPage pageScroll">
     <h2>Settings</h2>
     <div className="settingsGrid">
       <label>BPM<input type="number" value={bpm} min="40" max="240" onChange={e=>setBpm(Number(e.target.value)||120)}/></label>
       <label>Loop Bars<select value={loopBars} onChange={e=>setLoopBars(Number(e.target.value))}>{[1,2,4,8,16].map(x=><option key={x}>{x}</option>)}</select></label>
       <label>Count-In<select value={countInBars} onChange={e=>setCountInBars(Number(e.target.value))}>{[0,1,2,4].map(x=><option key={x} value={x}>{x === 0 ? 'Off' : `${x} Bar${x>1?'s':''}`}</option>)}</select></label>
+      <label>Polyphony<select value={maxPolyphony} onChange={e=>setMaxPolyphony(Number(e.target.value))}>{[16,32,64].map(x=><option key={x} value={x}>{x} Voices</option>)}</select></label>
+      <div className="voiceMeter"><span>Voices</span><b>{activeVoices}/{maxPolyphony}</b><em style={{width:`${Math.min(100,(activeVoices/maxPolyphony)*100)}%`}} /></div>
       <label>Grid<select value={gridResolution} onChange={e=>setGridResolution(e.target.value)}>{GRID_OPTIONS.map(g=><option key={g.label}>{g.label}</option>)}</select></label>
       <label>Quantize Strength<input type="range" min="0" max="100" value={quantize} onChange={e=>setQuantize(Number(e.target.value))}/><b>{quantize}%</b></label>
       <label>Swing<input type="range" min="50" max="75" value={swing} onChange={e=>setSwing(Number(e.target.value))}/><b>{swing}%</b></label>
@@ -398,6 +441,7 @@ function App(){
   const [gridResolution,setGridResolution]=useState('1/16');
   const [snapToGrid,setSnapToGrid]=useState(true);
   const [followPlayhead,setFollowPlayhead]=useState(false);
+  const [maxPolyphony,setMaxPolyphony]=useState(32);
   const [muted,setMuted]=useState({});
   const [page,setPage]=useState('play');
   const timer = useRef(null);
@@ -407,7 +451,7 @@ function App(){
   const patternRef = useRef(pattern);
   const bpmRef = useRef(bpm);
   const stateRef = useRef({ muted, metronome, loopBars });
-  const { playPad, playClick, preloadKit, loadStatus } = useDrumAudio(pads, 1, lowLatency);
+  const { playPad, playClick, preloadKit, loadStatus, activeVoices } = useDrumAudio(pads, 1, lowLatency, maxPolyphony);
 
   useEffect(()=>{ patternRef.current = pattern; },[pattern]);
   useEffect(()=>{ currentStepRef.current = currentStep; },[currentStep]);
@@ -542,7 +586,7 @@ function App(){
   return <main className="appLocked">
     {page === 'play' && <PlayPage transport={{isPlaying,start,stop,isRecording,requestRecord,isCountingIn,bpm,loopBars,currentStep}} sequencer={{pads,pattern,setPatternLive,currentStep,loopBars,gridResolution,snapToGrid,muted,setMuted,followPlayhead}} pads={{pads,selectedPad,setSelectedPad,onPad:recordPad,velocity}} />}
     {page === 'samples' && <SamplesPage pads={pads} setPads={setPads} selectedPad={selectedPad} setSelectedPad={setSelectedPad}/>} 
-    {page === 'settings' && <SettingsPage bpm={bpm} setBpm={setBpm} loopBars={loopBars} setLoopBars={setLoopBars} quantize={quantize} setQuantize={setQuantize} swing={swing} setSwing={setSwing} metronome={metronome} setMetronome={setMetronome} lowLatency={lowLatency} setLowLatency={setLowLatency} preloadKit={preloadKit} loadStatus={loadStatus} snapToGrid={snapToGrid} setSnapToGrid={setSnapToGrid} gridResolution={gridResolution} setGridResolution={setGridResolution} countInBars={countInBars} setCountInBars={setCountInBars} followPlayhead={followPlayhead} setFollowPlayhead={setFollowPlayhead} clearPattern={clearPattern} copyBar={copyBar}/>} 
+    {page === 'settings' && <SettingsPage bpm={bpm} setBpm={setBpm} loopBars={loopBars} setLoopBars={setLoopBars} quantize={quantize} setQuantize={setQuantize} swing={swing} setSwing={setSwing} metronome={metronome} setMetronome={setMetronome} lowLatency={lowLatency} setLowLatency={setLowLatency} preloadKit={preloadKit} loadStatus={loadStatus} snapToGrid={snapToGrid} setSnapToGrid={setSnapToGrid} gridResolution={gridResolution} setGridResolution={setGridResolution} countInBars={countInBars} setCountInBars={setCountInBars} followPlayhead={followPlayhead} setFollowPlayhead={setFollowPlayhead} maxPolyphony={maxPolyphony} setMaxPolyphony={setMaxPolyphony} activeVoices={activeVoices} clearPattern={clearPattern} copyBar={copyBar}/>} 
     {(isCountingIn || countText) && <div className="countOverlay"><b>{countText}</b><span>{isCountingIn ? 'Count-In' : 'Recording'}</span></div>}
     <nav className="bottomNav">
       <button className={page==='play'?'active':''} onClick={()=>setPage('play')}><Music2 size={17}/>Play</button>

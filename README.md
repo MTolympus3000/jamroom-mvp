@@ -36,3 +36,13 @@ npm run build
 - One-finger tap still adds/removes notes.
 - Touch note entry is delayed briefly so a second finger can join without accidentally creating notes.
 - Any pending note tap is cancelled the moment two-finger pan starts.
+
+## v10 Polyphony + Choke Groups
+
+- Polyphony setting: 16, 32, or 64 voices
+- Voice stealing: when the limit is reached, the oldest voice is stopped
+- Voice meter in Settings
+- Per-pad choke group setting in Samples
+- Default choke groups:
+  - Group 1: closed/open hats
+  - Group 2: 808 pads
