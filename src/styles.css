@@ -376,70 +376,154 @@ button, input, select, textarea {
   .mpcOnly, .trackEditor.fixedPadEditor { min-height: 160px; }
 }
 
-
-/* v17: hard layout fix - sequencer + bottom pad/editor slot */
-.playPage {
-  display: flex !important;
-  flex-direction: column !important;
-  height: calc(100dvh - 70px) !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
+/* v18-safe patch: themed sequencer D-pad + editor page buttons. Do not change v17 layout. */
+.seqHeaderDpad{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  align-items:center;
+  gap:10px;
 }
-
-.performanceArea {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow: hidden;
+.seqHeaderDpad small{
+  justify-self:end;
+  font-size:10px;
+  color:#a99eff;
+  text-transform:uppercase;
 }
-
-.performanceArea .playSequencer {
-  flex: 0 0 45% !important;
-  height: auto !important;
-  min-height: 150px !important;
-  max-height: 45% !important;
-  overflow: hidden !important;
+.seqDpad{
+  width:92px;
+  height:32px;
+  display:grid;
+  grid-template-columns:24px 24px 24px;
+  grid-template-rows:15px 15px;
+  gap:2px;
+  padding:2px;
+  border-radius:12px;
+  background:linear-gradient(180deg,rgba(36,31,52,.96),rgba(17,14,25,.96));
+  border:1px solid rgba(255,255,255,.1);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 8px 18px rgba(0,0,0,.2);
+  touch-action:none;
 }
-
-.bottomArea {
-  flex: 1 1 55%;
-  min-height: 210px;
-  overflow: hidden;
-  display: flex;
+.dpadBtn,.dpadCenter{
+  min-width:0;
+  min-height:0;
+  border-radius:7px;
+  background:#211b31;
+  border:1px solid rgba(255,255,255,.08);
+  color:#ded6ff;
+  display:grid;
+  place-items:center;
+  font-size:10px;
+  font-weight:1000;
+  line-height:1;
+  touch-action:none;
 }
-
-.bottomArea .mpcOnly,
-.bottomArea .trackEditor.fixedPadEditor {
-  width: 100%;
-  height: 100% !important;
-  min-height: 0 !important;
-  max-height: none !important;
-  flex: 1 1 auto !important;
-  display: grid !important;
-  visibility: visible !important;
-  opacity: 1 !important;
+.dpadBtn:active{
+  background:linear-gradient(180deg,#9d5cff,#6d43e8);
+  color:white;
+  box-shadow:0 0 14px rgba(157,92,255,.45);
+  transform:scale(.96);
 }
-
-.bottomArea .mpcOnly {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(4, minmax(0, 1fr));
+.dpadCenter{
+  background:radial-gradient(circle,rgba(167,255,223,.22),rgba(33,27,49,.9));
 }
+.dpadUp{grid-column:2;grid-row:1}
+.dpadLeft{grid-column:1;grid-row:2}
+.dpadCenter{grid-column:2;grid-row:2}
+.dpadRight{grid-column:3;grid-row:2}
+.dpadDown{grid-column:2;grid-row:2;transform:translateY(16px)}
+.dpadDown:active{transform:translateY(16px) scale(.96)}
 
-.bottomArea .mpcPad {
-  min-height: 0 !important;
-  display: flex !important;
+.editorTopPaged{
+  grid-template-columns:30px minmax(0,1fr) 86px 34px 30px !important;
+  gap:6px !important;
 }
-
-@media (max-height: 720px) {
-  .performanceArea .playSequencer {
-    flex-basis: 40% !important;
-    max-height: 40% !important;
-    min-height: 132px !important;
-  }
-
-  .bottomArea {
-    min-height: 170px;
-  }
+.editorPageButtons{
+  height:32px;
+  display:grid;
+  grid-template-columns:24px 1fr 24px;
+  align-items:center;
+  gap:3px;
+  padding:3px;
+  border-radius:11px;
+  background:rgba(7,6,12,.55);
+  border:1px solid rgba(255,255,255,.09);
+}
+.editorPageButtons button{
+  height:24px;
+  min-width:0;
+  border-radius:8px;
+  background:#211b31;
+  border:1px solid rgba(255,255,255,.08);
+  color:#ede8ff;
+  font-size:10px;
+  font-weight:1000;
+}
+.editorPageButtons button:active{
+  background:linear-gradient(180deg,#ff3b8a,#9836ff);
+  color:#fff;
+}
+.editorPageButtons button.disabled{
+  opacity:.35;
+}
+.editorPageButtons span{
+  text-align:center;
+  font-size:10px;
+  font-weight:1000;
+  color:#a7ffdf;
+}
+.sampleEditorGrid{
+  min-height:0;
+  height:100%;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:minmax(62px,1fr) minmax(56px,1fr) 42px;
+  gap:8px;
+  overflow:hidden;
+}
+.sampleTrimCard{
+  grid-column:span 2;
+  min-height:0;
+  border:1px solid rgba(255,255,255,.1);
+  background:rgba(7,6,12,.55);
+  border-radius:14px;
+  padding:8px;
+  display:grid;
+  grid-template-rows:auto auto 1fr;
+  gap:5px;
+}
+.sampleTrimCard span{
+  font-size:10px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:#b8aecf;
+  font-weight:1000;
+}
+.sampleTrimCard b{
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-size:11px;
+}
+.trimWave{
+  min-height:0;
+  display:flex;
+  align-items:center;
+  gap:2px;
+  border-radius:10px;
+  background:rgba(255,59,107,.08);
+  padding:5px;
+  overflow:hidden;
+}
+.trimWave i{
+  flex:1;
+  min-width:2px;
+  border-radius:999px;
+  background:linear-gradient(180deg,#ff6ab1,#8d5cff);
+  box-shadow:0 0 8px rgba(157,92,255,.25);
+}
+@media (max-height:720px){
+  .seqDpad{width:86px;height:30px;grid-template-columns:22px 22px 22px;grid-template-rows:14px 14px}
+  .editorTopPaged{grid-template-columns:28px minmax(0,1fr) 78px 32px 28px !important}
+  .sampleEditorGrid{gap:6px;grid-template-rows:minmax(52px,1fr) minmax(46px,1fr) 38px}
 }

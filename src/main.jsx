@@ -325,8 +325,35 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
   const endCol = Math.min(columns, startCol + visibleCount);
   const visibleColumns = Array.from({ length: Math.max(0, endCol - startCol) }, (_, i) => startCol + i);
 
+  const moveGrid = (direction) => {
+    const el = rowsRef.current;
+    if (!el) return;
+    const rowStep = 31;
+    const colStep = STEP_CELL_WIDTH * 8;
+    if (direction === 'left') el.scrollLeft = Math.max(0, el.scrollLeft - colStep);
+    if (direction === 'right') el.scrollLeft = Math.min(el.scrollWidth - el.clientWidth, el.scrollLeft + colStep);
+    if (direction === 'up') el.scrollTop = Math.max(0, el.scrollTop - rowStep);
+    if (direction === 'down') el.scrollTop = Math.min(el.scrollHeight - el.clientHeight, el.scrollTop + rowStep);
+    updateViewport();
+  };
+
+  const dpadPress = (event, direction) => {
+    event.preventDefault();
+    event.stopPropagation();
+    moveGrid(direction);
+  };
+
   return <section className="playSequencer">
-    <div className="seqHeader"><span>SEQUENCER</span><small>{gridResolution} beat · snap {snapToGrid?'on':'off'}</small></div>
+    <div className="seqHeader seqHeaderDpad">
+      <div className="seqDpad" aria-label="Grid navigation">
+        <button className="dpadBtn dpadUp" onPointerDown={(e)=>dpadPress(e,'up')}>▲</button>
+        <button className="dpadBtn dpadLeft" onPointerDown={(e)=>dpadPress(e,'left')}>◀</button>
+        <button className="dpadCenter" type="button" tabIndex={-1}></button>
+        <button className="dpadBtn dpadRight" onPointerDown={(e)=>dpadPress(e,'right')}>▶</button>
+        <button className="dpadBtn dpadDown" onPointerDown={(e)=>dpadPress(e,'down')}>▼</button>
+      </div>
+      <small>{gridResolution} · snap {snapToGrid?'on':'off'}</small>
+    </div>
     <div className="barNumbers">{Array.from({length: loopBars}, (_, i)=><span key={i} style={{left:`${(i/loopBars)*100}%`}}>{i+1}</span>)}</div>
     <div className="seqRows" ref={rowsRef} onScroll={updateViewport} onTouchStart={onGridTouchStart} onTouchMove={onGridTouchMove} onTouchEnd={onGridTouchEnd} onTouchCancel={onGridTouchEnd}>
       {pads.map((pad, r) => <div className="seqRow" key={r}>
@@ -347,80 +374,70 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
 
 function MpcPads({ pads, selectedPad, setSelectedPad, onPad, velocity }) {
   return <section className="mpcOnly">
-    {pads.map((pad, i) => {
-      const labelLines = String(pad.short || pad.label || `PAD ${i + 1}`).split('\n');
-      return (
-        <button
-          key={i}
-          className={`mpcPad ${pad.color || 'gray'} ${selectedPad === i ? 'selected' : ''}`}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            setSelectedPad(i);
-            onPad(i, velocity);
-          }}
-        >
-          <span>{i + 1}</span>
-          <b>
-            {labelLines.map((line, idx) => (
-              <React.Fragment key={`${line}-${idx}`}>
-                {line}
-                {idx < labelLines.length - 1 && <br />}
-              </React.Fragment>
-            ))}
-          </b>
-        </button>
-      );
-    })}
+    {pads.map((pad, i)=><button key={i} className={`mpcPad ${pad.color} ${selectedPad===i?'selected':''}`} onPointerDown={(e)=>{e.preventDefault(); setSelectedPad(i); onPad(i, velocity);}}>
+      <span>{i+1}</span><b>{(pad.short || pad.label || 'PAD').split('\n').map((line, idx)=><React.Fragment key={line+idx}>{line}{idx===0 && <br/>}</React.Fragment>)}</b>
+    </button>)}
   </section>
 }
 
 
 function TrackEditor({ padIndex, pads, setPads, onClose, onPreview }) {
+  const [editorPage, setEditorPage] = useState(0);
   const pad = pads[padIndex];
   const setPadValue = (key, value) => setPads(prev => prev.map((p, i) => i === padIndex ? { ...p, [key]: value } : p));
   if (!pad) return null;
+
+  const goEditorPage = (event, direction) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setEditorPage(prev => direction === 'next' ? Math.min(1, prev + 1) : Math.max(0, prev - 1));
+  };
+
   return <section className="trackEditor fixedPadEditor">
-    <div className="editorTop miniEditorTop">
+    <div className="editorTop miniEditorTop editorTopPaged">
       <button className="backBtn" onClick={onClose}>‹</button>
-      <div className="editorTitle"><small>PAD EDITOR</small><b><i className={pad.color}></i>{padIndex + 1} {pad.label}</b></div>
+      <div className="editorTitle"><small>{editorPage === 0 ? 'PAD MIX' : 'SAMPLE EDIT'}</small><b><i className={pad.color}></i>{padIndex + 1} {pad.label}</b></div>
+      <div className="editorPageButtons">
+        <button className={editorPage===0 ? 'disabled' : ''} onPointerDown={(e)=>goEditorPage(e,'prev')}>◀</button>
+        <span>{editorPage + 1}/2</span>
+        <button className={editorPage===1 ? 'disabled' : ''} onPointerDown={(e)=>goEditorPage(e,'next')}>▶</button>
+      </div>
       <button className="previewBtn" onClick={() => onPreview(padIndex)}>▶</button>
       <button className="closeBtn" onClick={onClose}>×</button>
     </div>
 
-    <div className="minimalEditorGrid">
+    {editorPage === 0 ? <div className="minimalEditorGrid">
       <label className="editorControl"><span>Volume</span><input type="range" min="0" max="2" step="0.01" value={pad.volume ?? 1} onChange={e=>setPadValue('volume', Number(e.target.value))}/><b>{(((pad.volume ?? 1)-1)*12).toFixed(1)} dB</b></label>
       <label className="editorControl"><span>Pan</span><input type="range" min="-1" max="1" step="0.01" value={pad.pan ?? 0} onChange={e=>setPadValue('pan', Number(e.target.value))}/><b>{(pad.pan ?? 0) === 0 ? 'C' : (pad.pan ?? 0) < 0 ? 'L' : 'R'}</b></label>
       <label className="editorControl"><span>Pitch</span><input type="range" min="-24" max="24" step="1" value={pad.tune ?? 0} onChange={e=>setPadValue('tune', Number(e.target.value))}/><b>{pad.tune ?? 0} st</b></label>
       <label className="editorControl"><span>Fine</span><input type="range" min="-100" max="100" step="1" value={pad.fine ?? 0} onChange={e=>setPadValue('fine', Number(e.target.value))}/><b>{pad.fine ?? 0} ct</b></label>
-
       <div className="editorSelectRow"><span>Choke</span><select value={pad.chokeGroup ?? 0} onChange={e=>setPadValue('chokeGroup', Number(e.target.value))}>{[0,1,2,3,4,5,6,7,8].map(g=><option key={g} value={g}>{g===0?'Off':`Group ${g}`}</option>)}</select></div>
       <div className="editorSelectRow"><span>Voice</span><select value={pad.voiceMode || 'poly'} onChange={e=>setPadValue('voiceMode', e.target.value)}>{['poly','mono'].map(mode=><option key={mode} value={mode}>{mode}</option>)}</select></div>
-
       <div className="editorActionRow"><button className={pad.mute?'active':''} onClick={()=>setPadValue('mute', !pad.mute)}>Mute</button><button className={pad.solo?'active':''} onClick={()=>setPadValue('solo', !pad.solo)}>Solo</button><button onClick={onClose}>Close</button></div>
-    </div>
+    </div> : <div className="sampleEditorGrid">
+      <div className="sampleTrimCard">
+        <span>Sample</span>
+        <b>{pad.sample || pad.label}</b>
+        <div className="trimWave" aria-hidden="true">{Array.from({length:34},(_,i)=><i key={i} style={{height:`${18 + ((i*17)%46)}%`}} />)}</div>
+      </div>
+      <label className="editorControl"><span>Start</span><input type="range" min="0" max="95" step="1" value={pad.trimStart ?? 0} onChange={e=>setPadValue('trimStart', Number(e.target.value))}/><b>{pad.trimStart ?? 0}%</b></label>
+      <label className="editorControl"><span>End</span><input type="range" min="5" max="100" step="1" value={pad.trimEnd ?? 100} onChange={e=>setPadValue('trimEnd', Number(e.target.value))}/><b>{pad.trimEnd ?? 100}%</b></label>
+      <div className="editorActionRow"><button className={pad.loopSample?'active':''} onClick={()=>setPadValue('loopSample', !pad.loopSample)}>Loop</button><button className={pad.reverse?'active':''} onClick={()=>setPadValue('reverse', !pad.reverse)}>Reverse</button><button onClick={() => onPreview(padIndex)}>Preview</button></div>
+    </div>}
   </section>
 }
 
 function PlayPage(props) {
   const editorOpen = props.editor.padIndex !== null;
-
-  return (
-    <div className="playPage">
-      <MiniTransport {...props.transport} />
-
-      <div className="performanceArea">
-        <Sequencer {...props.sequencer} />
-
-        <div className="bottomArea">
-          {editorOpen ? (
-            <TrackEditor {...props.editor} />
-          ) : (
-            <MpcPads {...props.pads} />
-          )}
-        </div>
+  return <div className="playPage">
+    <MiniTransport {...props.transport}/>
+    <div className="performanceArea">
+      <Sequencer {...props.sequencer}/>
+      <div className="bottomArea">
+        {editorOpen ? <TrackEditor {...props.editor}/> : <MpcPads {...props.pads}/>}
       </div>
     </div>
-  );
+  </div>
 }
 
 function SamplesPage({ pads, setPads, selectedPad, setSelectedPad }) {
