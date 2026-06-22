@@ -376,144 +376,70 @@ button, input, select, textarea {
   .mpcOnly, .trackEditor.fixedPadEditor { min-height: 160px; }
 }
 
-/* v18: long-press one-finger sequencer pan */
-.seqHeader small::after{
-  content:"" !important;
-}
-.seqRows.holdPanning{
-  cursor: grab;
-}
-.seqRows.holdPanning .step{
-  pointer-events: auto;
-}
-.step{
-  touch-action: none;
+
+/* v17: hard layout fix - sequencer + bottom pad/editor slot */
+.playPage {
+  display: flex !important;
+  flex-direction: column !important;
+  height: calc(100dvh - 70px) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
 
-/* v19: two-screen fixed editor with long-hold swipe */
-.trackEditor.fixedPadEditor {
-  grid-template-rows: 36px 30px minmax(0, 1fr);
-  touch-action: none;
-}
-.editorPageTabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 6px;
-  min-height: 30px;
-  align-items: center;
-}
-.editorPageTabs button {
-  height: 28px;
-  border-radius: 9px;
-  background: #171320;
-  border: 1px solid rgba(255,255,255,.09);
-  color: #bfb5dc;
-  font-size: 10px;
-  font-weight: 1000;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-}
-.editorPageTabs button.active {
-  background: linear-gradient(180deg,#7f4dff,#4e2aac);
-  color: #fff;
-}
-.editorPageTabs span {
-  font-size: 9px;
-  color: #887ca3;
-  white-space: nowrap;
-  font-weight: 900;
-}
-.trimEditorGrid {
-  height: 100%;
+.performanceArea {
+  flex: 1 1 auto;
   min-height: 0;
-  display: grid;
-  grid-template-rows: 24px minmax(72px, 1fr) 48px 48px 42px 34px;
-  gap: 7px;
-  overflow: hidden;
-}
-.trimReadout {
-  display: grid;
-  grid-template-columns: repeat(3,1fr);
-  gap: 6px;
-  font-size: 9px;
-  color: #b8aecf;
-  text-transform: uppercase;
-  font-weight: 900;
-}
-.trimReadout span {
-  background: rgba(255,255,255,.04);
-  border: 1px solid rgba(255,255,255,.07);
-  border-radius: 9px;
-  padding: 5px 7px;
-}
-.trimReadout b { color: #fff; float: right; }
-.trimWave {
-  position: relative;
-  overflow: hidden;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.1);
-  background: linear-gradient(180deg,rgba(80,45,130,.28),rgba(15,12,24,.84));
   display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 12px;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
 }
-.trimWave span {
-  flex: 1;
-  min-width: 2px;
-  background: linear-gradient(180deg,#f0dcff,#8d5cff 62%,#ff3b8a);
-  border-radius: 99px;
-  opacity: .9;
-  box-shadow: 0 0 10px rgba(141,92,255,.3);
+
+.performanceArea .playSequencer {
+  flex: 0 0 45% !important;
+  height: auto !important;
+  min-height: 150px !important;
+  max-height: 45% !important;
+  overflow: hidden !important;
 }
-.trimMarker {
-  position: absolute;
-  top: 9px;
-  bottom: 9px;
-  width: 3px;
-  border-radius: 99px;
-  background: #ff5cbb;
-  box-shadow: 0 0 14px rgba(255,92,187,.8);
+
+.bottomArea {
+  flex: 1 1 55%;
+  min-height: 210px;
+  overflow: hidden;
+  display: flex;
 }
-.trimMarker.start::after,
-.trimMarker.end::after {
-  content:"";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%,-50%);
-  width: 14px;
-  height: 28px;
-  border-radius: 999px;
-  background: #9d5cff;
-  border: 1px solid rgba(255,255,255,.28);
+
+.bottomArea .mpcOnly,
+.bottomArea .trackEditor.fixedPadEditor {
+  width: 100%;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  flex: 1 1 auto !important;
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
-.wideControl { grid-template-columns: 64px 1fr 46px; }
-.wideControl input { grid-column: auto; }
-.trimActions {
-  display: grid;
-  grid-template-columns: repeat(3,1fr);
-  gap: 7px;
+
+.bottomArea .mpcOnly {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
 }
-.trimActions button,
-.previewWide {
-  border-radius: 12px;
-  background: #211b31;
-  border: 1px solid rgba(255,255,255,.1);
-  color: #ede8ff;
-  font-size: 11px;
-  font-weight: 1000;
+
+.bottomArea .mpcPad {
+  min-height: 0 !important;
+  display: flex !important;
 }
-.trimActions button.active {
-  background: linear-gradient(180deg,#ff3b8a,#9836ff);
-  color: white;
-}
-.previewWide {
-  min-height: 34px;
-  background: rgba(141,92,255,.28);
-}
+
 @media (max-height: 720px) {
-  .trackEditor.fixedPadEditor { grid-template-rows: 34px 28px minmax(0,1fr); gap: 6px; }
-  .trimEditorGrid { grid-template-rows: 22px minmax(58px, 1fr) 42px 42px 36px 30px; gap: 5px; }
-  .editorPageTabs span { display: none; }
+  .performanceArea .playSequencer {
+    flex-basis: 40% !important;
+    max-height: 40% !important;
+    min-height: 132px !important;
+  }
+
+  .bottomArea {
+    min-height: 170px;
+  }
 }
