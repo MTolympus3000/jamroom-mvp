@@ -377,186 +377,69 @@ button, input, select, textarea {
 }
 
 
-/* v21: themed D-pad + two-page editor + realtime pad settings */
-.transportBlank {
-  min-width: 106px;
-  height: 100%;
-  border-radius: 11px;
-  background: linear-gradient(180deg, rgba(35,31,50,.72), rgba(13,11,20,.46));
-  border: 1px solid rgba(255,255,255,.06);
-  opacity: .65;
+/* v17: hard layout fix - sequencer + bottom pad/editor slot */
+.playPage {
+  display: flex !important;
+  flex-direction: column !important;
+  height: calc(100dvh - 70px) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
 
-.playSequencer {
-  position: relative;
-  grid-template-rows: 62px 16px 1fr;
-}
-
-.seqHeader {
-  min-height: 62px;
-  align-items: start;
-}
-
-.seqHeader small {
-  justify-self: end;
-  align-self: center;
-  padding-right: 2px;
-}
-
-.gridDpad {
-  width: 122px;
-  height: 58px;
-  display: grid;
-  grid-template-columns: repeat(3, 34px);
-  grid-template-rows: repeat(3, 18px);
-  gap: 3px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 16px;
-  background:
-    radial-gradient(circle at 50% 45%, rgba(141,92,255,.22), transparent 56%),
-    linear-gradient(180deg, rgba(37,32,52,.92), rgba(17,14,25,.88));
-  border: 1px solid rgba(157,92,255,.18);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 12px 28px rgba(0,0,0,.24);
-  padding: 4px;
-  touch-action: none;
-}
-
-.gridDpad button {
-  width: 34px;
-  height: 18px;
-  min-height: 18px;
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(51,44,72,.96), rgba(28,23,42,.96));
-  border: 1px solid rgba(177,140,255,.24);
-  color: #b996ff;
-  font-weight: 1000;
-  line-height: 1;
-  display: grid;
-  place-items: center;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
-}
-
-.gridDpad button:active {
-  transform: translateY(1px);
-  background: linear-gradient(180deg, #8d5cff, #5635c9);
-  color: white;
-  box-shadow: 0 0 18px rgba(141,92,255,.42);
-}
-
-.miniEditorTop {
-  grid-template-columns: 32px minmax(0, 1fr) 126px 32px;
-}
-
-.editorPageNav {
-  height: 34px;
-  display: grid;
-  grid-template-columns: 34px 1fr 34px;
-  gap: 7px;
-  align-items: center;
-}
-
-.editorPageNav button {
-  height: 34px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, rgba(51,44,72,.96), rgba(28,23,42,.96));
-  border: 1px solid rgba(177,140,255,.24);
-  color: #f3edff;
-  font-size: 21px;
-  font-weight: 1000;
-  display: grid;
-  place-items: center;
-}
-
-.editorPageNav b {
-  color: #b996ff;
-  font-size: 12px;
-  font-weight: 1000;
-  letter-spacing: .12em;
-  text-align: center;
-}
-
-.trimEditorGrid {
+.performanceArea {
+  flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: minmax(70px, 1.25fr) minmax(68px, .85fr) minmax(56px, .75fr);
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   overflow: hidden;
 }
 
-.trimWave {
-  grid-column: span 2;
-  position: relative;
+.performanceArea .playSequencer {
+  flex: 0 0 45% !important;
+  height: auto !important;
+  min-height: 150px !important;
+  max-height: 45% !important;
+  overflow: hidden !important;
+}
+
+.bottomArea {
+  flex: 1 1 55%;
+  min-height: 210px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,.1);
-  background:
-    radial-gradient(circle at 18% 50%, rgba(157,92,255,.24), transparent 42%),
-    rgba(7,6,12,.55);
-  border-radius: 14px;
-  padding: 10px 14px;
-}
-
-.fakeWave {
-  height: 100%;
   display: flex;
-  align-items: center;
-  gap: 2px;
 }
 
-.fakeWave i {
-  flex: 1;
-  min-width: 2px;
-  max-width: 5px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #c2a2ff, #744cff);
-  box-shadow: 0 0 8px rgba(141,92,255,.24);
+.bottomArea .mpcOnly,
+.bottomArea .trackEditor.fixedPadEditor {
+  width: 100%;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  flex: 1 1 auto !important;
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
-.trimHandle {
-  position: absolute;
-  top: 10px;
-  bottom: 10px;
-  width: 7px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #9d5cff, #c2a2ff);
-  box-shadow: 0 0 18px rgba(157,92,255,.55);
-  z-index: 2;
+.bottomArea .mpcOnly {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
 }
 
-.trimHandle.left { left: 12px; }
-.trimHandle.right { right: 12px; }
-
-.trimActions {
-  grid-column: span 2;
-}
-
-.trimActions button {
-  min-height: 48px;
+.bottomArea .mpcPad {
+  min-height: 0 !important;
+  display: flex !important;
 }
 
 @media (max-height: 720px) {
-  .playSequencer {
-    grid-template-rows: 54px 14px 1fr;
+  .performanceArea .playSequencer {
+    flex-basis: 40% !important;
+    max-height: 40% !important;
+    min-height: 132px !important;
   }
-  .gridDpad {
-    width: 108px;
-    height: 50px;
-    grid-template-columns: repeat(3, 30px);
-    grid-template-rows: repeat(3, 15px);
-  }
-  .gridDpad button {
-    width: 30px;
-    height: 15px;
-    min-height: 15px;
-    font-size: 12px;
-  }
-  .miniEditorTop {
-    grid-template-columns: 30px minmax(0, 1fr) 108px 30px;
-  }
-  .editorPageNav {
-    grid-template-columns: 30px 1fr 30px;
-    gap: 5px;
+
+  .bottomArea {
+    min-height: 170px;
   }
 }
