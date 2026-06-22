@@ -1,93 +1,189 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Play, Square, Circle, Upload, Music2, SlidersHorizontal, Drum, Piano, Waves } from 'lucide-react';
+import { Play, Square, Circle, Trash2, Copy, Upload, RotateCcw } from 'lucide-react';
 import './styles.css';
-import { NOTE_NAMES, MODES, DENSITIES, DRUM_PADS, buildChord } from './data/musicTheory';
-import { playChord, playDrum } from './lib/audioEngine';
+import { DRUM_PADS, DEFAULT_VISIBLE_ROWS } from './data/drums';
+import { getSampleName, loadSample, playPad } from './lib/drumAudio';
 
-const GRID_STEPS = 32;
-const PIANO_ROWS = ['C5','B4','A4','G4','F4','E4','D4','C4'];
+const STEPS_PER_BAR = 16;
 
-function Transport({settings,setSettings,isPlaying,setPlaying}){
- const set=(k,v)=>setSettings(s=>({...s,[k]:v}));
- return <section className="transport glass">
-  <button className="round primary" onClick={()=>setPlaying(true)}><Play size={18}/></button>
-  <button className="round" onClick={()=>setPlaying(false)}><Square size={18}/></button>
-  <button className="round record"><Circle size={18}/></button>
-  <label>BPM<input type="number" value={settings.bpm} onChange={e=>set('bpm',+e.target.value)} /></label>
-  <label>Loop<select value={settings.loopBars} onChange={e=>set('loopBars',+e.target.value)}>{[1,2,4,8,16,32,64].map(v=><option key={v} value={v}>{v} Bars</option>)}</select></label>
-  <label>Quantize<select value={settings.quantizeGrid} onChange={e=>set('quantizeGrid',e.target.value)}>{['1/4','1/8','1/16','1/32','1/64'].map(v=><option key={v}>{v}</option>)}</select></label>
-  <label>Strength<input type="range" min="0" max="100" value={settings.quantizeStrength} onChange={e=>set('quantizeStrength',+e.target.value)}/><span>{settings.quantizeStrength}%</span></label>
-  <label>Swing<input type="range" min="50" max="75" value={settings.swing} onChange={e=>set('swing',+e.target.value)}/><span>{settings.swing}%</span></label>
-  <button className={settings.metro?'pill active':'pill'} onClick={()=>set('metro',!settings.metro)}>Metronome</button>
-  <span className={isPlaying?'status live':'status'}>{isPlaying?'Playing loop':'Stopped'}</span>
- </section>
+function makeGrid(loopBars) {
+  const steps = loopBars * STEPS_PER_BAR;
+  return Object.fromEntries(DRUM_PADS.map(p => [p.id, Array(steps).fill(false)]));
 }
 
-function Timeline({audioClips, chordNotes, drumGrid}){
- const hits=Object.values(drumGrid).flat().filter(Boolean).length;
- return <section className="panel timeline"><div className="sectionTitle"><Waves/>Timeline / Loop Playlist</div>
-  <div className="barRuler">{Array.from({length:8},(_,i)=><span key={i}>Bar {i+1}</span>)}</div>
-  <TrackLane name="Voice idea" type="wave" blocks={audioClips.length?audioClips:['default']}/>
-  <TrackLane name="Harmony" type="wave" blocks={['soft']}/>
-  <div className="lane"><b>Chord MIDI</b><div className="miniNotes">{chordNotes.map((n,i)=><span key={i}>{n}</span>)}</div></div>
-  <div className="lane"><b>Drums MIDI</b><div className="drumSummary">{hits} hits in loop</div></div>
- </section>
-}
-function TrackLane({name,type,blocks}){ return <div className="lane"><b>{name}</b><div className="waveform">{Array.from({length:90},(_,i)=><i key={i} style={{height:`${12+Math.abs(Math.sin(i*.48))*38}px`}}/> )}</div></div> }
-
-function DrumMachine({drumGrid,setDrumGrid,isRecording}){
- const toggle=(pad,step)=>setDrumGrid(g=>({...g,[pad]:g[pad].map((v,i)=>i===step?!v:v)}));
- const hitPad=(id)=>{ playDrum(id); if(isRecording){ const step=Math.floor(Math.random()*GRID_STEPS); toggle(id,step); } };
- return <section className="panel drumMachine"><div className="sectionTitle"><Drum/>Drum Machine: grid top, pads bottom</div>
-  <div className="stepGrid">
-   <div className="corner">Pad</div>{Array.from({length:GRID_STEPS},(_,i)=><div className="stepHead" key={i}>{i+1}</div>)}
-   {DRUM_PADS.slice(0,8).map(p=><React.Fragment key={p.id}><div className="rowLabel">{p.name}</div>{Array.from({length:GRID_STEPS},(_,i)=><button key={i} className={drumGrid[p.id]?.[i]?'cell on':'cell'} onClick={()=>toggle(p.id,i)} />)}</React.Fragment>)}
-  </div>
-  <div className="padBank">{DRUM_PADS.map(p=><button className={`pad ${p.color}`} key={p.id} onClick={()=>hitPad(p.id)}><span>{p.name}</span><small>tap / record</small></button>)}</div>
- </section>
+function resizeGrid(oldGrid, loopBars) {
+  const steps = loopBars * STEPS_PER_BAR;
+  const next = makeGrid(loopBars);
+  for (const pad of DRUM_PADS) {
+    const old = oldGrid?.[pad.id] || [];
+    next[pad.id] = Array.from({ length: steps }, (_, i) => Boolean(old[i]));
+  }
+  return next;
 }
 
-function ChordPlayer({settings,setSettings,chordNotes,setChordNotes}){
- const densityObj=DENSITIES.find(d=>d.id===settings.density);
- const playDegree=(i)=>{ const c=buildChord(settings.key,settings.mode,i,settings.density); setChordNotes(c.notes); playChord(c.notes); };
- const set=(k,v)=>setSettings(s=>({...s,[k]:v}));
- return <section className="panel"><div className="sectionTitle"><Music2/>One-Finger Chord Player</div>
-  <div className="controlsGrid">
-   <label>Key<select value={settings.key} onChange={e=>set('key',e.target.value)}>{NOTE_NAMES.map(n=><option key={n}>{n}</option>)}</select></label>
-   <label>Mode<select value={settings.mode} onChange={e=>set('mode',e.target.value)}>{Object.keys(MODES).map(m=><option key={m}>{m}</option>)}</select></label>
-   <label>Density<select value={settings.density} onChange={e=>set('density',+e.target.value)}>{DENSITIES.map(d=><option key={d.id} value={d.id}>{d.id} Notes: {d.label}</option>)}</select></label>
-  </div>
-  <div className="keyboard">{NOTE_NAMES.filter(n=>!n.includes('#')).map((n,i)=><button key={n} onClick={()=>playDegree(i)}>{n}<small>{buildChord(settings.key,settings.mode,i,settings.density).root}{buildChord(settings.key,settings.mode,i,settings.density).quality}</small></button>)}</div>
-  <div className="theoryBox"><b>{densityObj.label}</b>: {densityObj.desc}. <b>Density</b> = notes sounding. <b>Voicing</b> = octave spacing. <b>Extensions</b> = 9ths, 11ths, 13ths.</div>
- </section>
+function App() {
+  const [bpm, setBpm] = useState(120);
+  const [loopBars, setLoopBars] = useState(2);
+  const [quantizeStrength, setQuantizeStrength] = useState(100);
+  const [quantizeResolution, setQuantizeResolution] = useState('1/16');
+  const [swing, setSwing] = useState(50);
+  const [recording, setRecording] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [selectedPad, setSelectedPad] = useState('kick');
+  const [grid, setGrid] = useState(() => makeGrid(loopBars));
+  const [sampleNames, setSampleNames] = useState({});
+  const intervalRef = useRef(null);
+  const stepRef = useRef(0);
+
+  const totalSteps = loopBars * STEPS_PER_BAR;
+  const visiblePads = useMemo(() => DRUM_PADS.filter(p => DEFAULT_VISIBLE_ROWS.includes(p.id)), []);
+
+  useEffect(() => {
+    setGrid(g => resizeGrid(g, loopBars));
+    setCurrentStep(0);
+    stepRef.current = 0;
+  }, [loopBars]);
+
+  useEffect(() => {
+    function onKey(e) {
+      const pad = DRUM_PADS.find(p => p.key.toLowerCase() === e.key.toLowerCase());
+      if (pad) triggerPad(pad.id);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  useEffect(() => {
+    if (!playing) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+      return;
+    }
+
+    const sixteenthMs = (60 / bpm / 4) * 1000;
+    intervalRef.current = setInterval(() => {
+      const step = stepRef.current;
+      DRUM_PADS.forEach(p => { if (grid[p.id]?.[step]) playPad(p.id); });
+      setCurrentStep(step);
+      stepRef.current = (step + 1) % totalSteps;
+    }, sixteenthMs);
+
+    return () => clearInterval(intervalRef.current);
+  }, [playing, bpm, grid, totalSteps]);
+
+  function toggleStep(padId, step) {
+    setGrid(g => ({
+      ...g,
+      [padId]: g[padId].map((hit, i) => (i === step ? !hit : hit))
+    }));
+  }
+
+  function triggerPad(padId) {
+    setSelectedPad(padId);
+    playPad(padId);
+    if (recording) {
+      const target = quantizedStep(currentStep, quantizeStrength);
+      setGrid(g => ({
+        ...g,
+        [padId]: g[padId].map((hit, i) => (i === target ? true : hit))
+      }));
+    }
+  }
+
+  function quantizedStep(step, strength) {
+    const resolutionMap = { '1/4': 4, '1/8': 2, '1/16': 1, '1/32': 0.5 };
+    const gridSize = resolutionMap[quantizeResolution] || 1;
+    const nearest = Math.round(step / gridSize) * gridSize;
+    const moved = step + (nearest - step) * (strength / 100);
+    return Math.max(0, Math.min(totalSteps - 1, Math.round(moved)));
+  }
+
+  function stop() {
+    setPlaying(false);
+    setCurrentStep(0);
+    stepRef.current = 0;
+  }
+
+  function clearPattern() {
+    setGrid(makeGrid(loopBars));
+  }
+
+  function copyFirstBar() {
+    setGrid(g => {
+      const next = { ...g };
+      for (const pad of DRUM_PADS) {
+        const firstBar = g[pad.id].slice(0, STEPS_PER_BAR);
+        next[pad.id] = Array.from({ length: totalSteps }, (_, i) => firstBar[i % STEPS_PER_BAR]);
+      }
+      return next;
+    });
+  }
+
+  async function assignSample(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const name = await loadSample(selectedPad, file);
+    setSampleNames(s => ({ ...s, [selectedPad]: name || getSampleName(selectedPad) }));
+  }
+
+  return <main className="app">
+    <header className="hero">
+      <div>
+        <p className="eyebrow">JamRoom Focus Mode</p>
+        <h1>Drum Machine + MIDI Sequencer</h1>
+      </div>
+      <div className="selected">Selected Pad: <b>{DRUM_PADS.find(p => p.id === selectedPad)?.name}</b></div>
+    </header>
+
+    <section className="transport panel">
+      <button className="icon primary" onClick={() => setPlaying(true)}><Play size={18}/> Play</button>
+      <button className="icon" onClick={stop}><Square size={18}/> Stop</button>
+      <button className={recording ? 'icon rec active' : 'icon rec'} onClick={() => setRecording(r => !r)}><Circle size={18}/> Record Pads</button>
+      <label>BPM <input type="number" min="40" max="240" value={bpm} onChange={e => setBpm(Number(e.target.value))}/></label>
+      <label>Loop <select value={loopBars} onChange={e => setLoopBars(Number(e.target.value))}>{[1,2,4,8,16].map(v => <option key={v} value={v}>{v} Bars</option>)}</select></label>
+      <label>Quantize <select value={quantizeResolution} onChange={e => setQuantizeResolution(e.target.value)}>{['1/4','1/8','1/16','1/32'].map(v => <option key={v}>{v}</option>)}</select></label>
+      <label className="range">Strength <input type="range" min="0" max="100" value={quantizeStrength} onChange={e => setQuantizeStrength(Number(e.target.value))}/><span>{quantizeStrength}%</span></label>
+      <label className="range">Swing <input type="range" min="50" max="75" value={swing} onChange={e => setSwing(Number(e.target.value))}/><span>{swing}%</span></label>
+    </section>
+
+    <section className="panel sequencerPanel">
+      <div className="sectionHeader">
+        <h2>MIDI Drum Sequencer</h2>
+        <div className="actions">
+          <button onClick={copyFirstBar}><Copy size={16}/> Copy Bar 1 to Loop</button>
+          <button onClick={clearPattern}><Trash2 size={16}/> Clear</button>
+        </div>
+      </div>
+      <div className="sequencer" style={{ gridTemplateColumns: `92px repeat(${totalSteps}, minmax(24px, 1fr))` }}>
+        <div className="corner">Pad</div>
+        {Array.from({ length: totalSteps }, (_, i) => <div key={i} className={i === currentStep ? 'stepNum playhead' : 'stepNum'}>{i % 4 === 0 ? i + 1 : ''}</div>)}
+        {visiblePads.map(p => <React.Fragment key={p.id}>
+          <button className={selectedPad === p.id ? 'rowLabel active' : 'rowLabel'} onClick={() => setSelectedPad(p.id)}>{p.name}</button>
+          {Array.from({ length: totalSteps }, (_, i) => <button key={i} onClick={() => toggleStep(p.id, i)} className={grid[p.id]?.[i] ? 'step on' : 'step'} />)}
+        </React.Fragment>)}
+      </div>
+    </section>
+
+    <section className="panel padPanel">
+      <div className="sectionHeader">
+        <h2>16 Drum Pads</h2>
+        <label className="sampleButton"><Upload size={16}/> Assign Sample to Selected Pad<input type="file" accept="audio/*" onChange={assignSample}/></label>
+      </div>
+      <div className="pads">
+        {DRUM_PADS.map(p => <button key={p.id} onClick={() => triggerPad(p.id)} className={selectedPad === p.id ? 'pad active' : 'pad'}>
+          <span>{p.name}</span>
+          <small>{p.key} {sampleNames[p.id] ? `• ${sampleNames[p.id]}` : ''}</small>
+        </button>)}
+      </div>
+    </section>
+
+    <section className="panel notes">
+      <h2>What this build includes</h2>
+      <p>Only the drum machine and drum sequencer are included. Chords, piano roll, audio tracks, waveform timeline, and collaboration have been removed from this focused MVP.</p>
+    </section>
+  </main>;
 }
 
-function PianoRoll({chordNotes}){
- return <section className="panel"><div className="sectionTitle"><Piano/>Piano Roll</div>
-  <div className="pianoRoll">{PIANO_ROWS.map(row=><React.Fragment key={row}><div className="pianoLabel">{row}</div>{Array.from({length:16},(_,i)=>{ const active=chordNotes.some(n=>row.startsWith(n)); return <div key={i} className={active && i<4?'noteCell active':'noteCell'} />})}</React.Fragment>)}</div>
-  <div className="buttonRow"><button>Quantize Notes</button><button>Duplicate Bar</button><button>Transpose +12</button><button>Clear Selected</button></div>
- </section>
-}
-
-function AudioImporter({audioClips,setAudioClips}){
- const onFile=e=>{ const files=[...e.target.files].map(f=>({name:f.name,url:URL.createObjectURL(f)})); setAudioClips(c=>[...c,...files]); };
- return <section className="panel"><div className="sectionTitle"><Upload/>Audio Import / Wave Clips</div>
-  <label className="dropZone"><input type="file" multiple accept="audio/*" onChange={onFile}/>Import WAV / MP3 / AIFF samples</label>
-  <div className="clipList">{audioClips.map((c,i)=><div className="clip" key={i}><b>{c.name}</b><div className="waveform small">{Array.from({length:60},(_,j)=><i key={j} style={{height:`${8+Math.abs(Math.sin(j*.7+i))*26}px`}} />)}</div></div>)}</div>
- </section>
-}
-
-function App(){
- const [settings,setSettings]=useState({bpm:120, loopBars:8, quantizeGrid:'1/16', quantizeStrength:75, swing:58, metro:true, key:'C', mode:'Ionian', density:4});
- const [isPlaying,setPlaying]=useState(false); const [isRecording,setRecording]=useState(false);
- const [chordNotes,setChordNotes]=useState(['C','E','G','B']);
- const [audioClips,setAudioClips]=useState([]);
- const [drumGrid,setDrumGrid]=useState(()=>Object.fromEntries(DRUM_PADS.map(p=>[p.id,Array(GRID_STEPS).fill(false)])));
- return <main><header className="hero"><div><h1>JamRoom</h1><p>Collaborative loop DAW: drum pads, MIDI grid, chord engine, waveforms.</p></div><button className={isRecording?'pill danger active':'pill'} onClick={()=>setRecording(!isRecording)}>{isRecording?'Recording Pads':'Pad Record Off'}</button></header>
-  <Transport settings={settings} setSettings={setSettings} isPlaying={isPlaying} setPlaying={setPlaying}/>
-  <div className="layout"><div className="left"><Timeline audioClips={audioClips} chordNotes={chordNotes} drumGrid={drumGrid}/><DrumMachine drumGrid={drumGrid} setDrumGrid={setDrumGrid} isRecording={isRecording}/></div><aside><ChordPlayer settings={settings} setSettings={setSettings} chordNotes={chordNotes} setChordNotes={setChordNotes}/><PianoRoll chordNotes={chordNotes}/><AudioImporter audioClips={audioClips} setAudioClips={setAudioClips}/></aside></div>
- </main>
-}
-
-createRoot(document.getElementById('root')).render(<App/>);
+createRoot(document.getElementById('root')).render(<App />);
