@@ -27,25 +27,62 @@ const defaultPads = [
   { label:'User Sample', short:'User\nSample', category:'USER', sample:'Empty', url:null, color:'gray' },
 ];
 
-function useDrumAudio(pads, volume = 1) {
+function useDrumAudio(pads, volume = 1, lowLatency = true) {
   const ctxRef = useRef(null);
   const bufferMap = useRef(new Map());
+  const loadingMap = useRef(new Map());
+  const [loadStatus, setLoadStatus] = useState({ loaded: 0, total: 0, ready: false });
 
   const ensureContext = async () => {
-    if (!ctxRef.current) ctxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    if (!ctxRef.current) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      ctxRef.current = new AudioCtx({ latencyHint: lowLatency ? 'interactive' : 'balanced' });
+    }
     if (ctxRef.current.state === 'suspended') await ctxRef.current.resume();
     return ctxRef.current;
   };
 
   const loadBuffer = async (pad) => {
-    if (!pad.url) return null;
+    if (!pad?.url) return null;
     if (bufferMap.current.has(pad.url)) return bufferMap.current.get(pad.url);
-    const ctx = await ensureContext();
-    const res = await fetch(pad.url);
-    const arr = await res.arrayBuffer();
-    const buf = await ctx.decodeAudioData(arr.slice(0));
-    bufferMap.current.set(pad.url, buf);
-    return buf;
+    if (loadingMap.current.has(pad.url)) return loadingMap.current.get(pad.url);
+
+    const promise = (async () => {
+      const ctx = await ensureContext();
+      const res = await fetch(pad.url);
+      const arr = await res.arrayBuffer();
+      const buf = await ctx.decodeAudioData(arr.slice(0));
+      bufferMap.current.set(pad.url, buf);
+      setLoadStatus(prev => ({ ...prev, loaded: bufferMap.current.size, ready: bufferMap.current.size >= prev.total && prev.total > 0 }));
+      return buf;
+    })().finally(() => loadingMap.current.delete(pad.url));
+
+    loadingMap.current.set(pad.url, promise);
+    return promise;
+  };
+
+  const preloadKit = async () => {
+    const urls = pads.filter(p => p.url).map(p => p.url);
+    const uniqueTotal = new Set(urls).size;
+    setLoadStatus({ loaded: bufferMap.current.size, total: uniqueTotal, ready: uniqueTotal === 0 });
+    await ensureContext();
+    await Promise.allSettled(pads.filter(p => p.url).map(loadBuffer));
+    setLoadStatus(prev => ({ ...prev, loaded: bufferMap.current.size, total: uniqueTotal, ready: true }));
+  };
+
+  useEffect(() => {
+    // Do not auto-start AudioContext before user gesture. We only update total.
+    const total = new Set(pads.filter(p => p.url).map(p => p.url)).size;
+    setLoadStatus(prev => ({ ...prev, total, loaded: [...bufferMap.current.keys()].filter(url => pads.some(p => p.url === url)).length }));
+  }, [pads]);
+
+  const triggerBuffer = (ctx, buffer, velocity = 100, when = 0) => {
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    gain.gain.value = Math.max(0.02, (velocity / 127) * volume);
+    source.buffer = buffer;
+    source.connect(gain).connect(ctx.destination);
+    source.start(ctx.currentTime + Math.max(0, when));
   };
 
   const playClick = async (isDownbeat = false) => {
@@ -66,40 +103,47 @@ function useDrumAudio(pads, volume = 1) {
     }
   };
 
-  const playPad = async (padIndex, velocity = 100, when = 0) => {
-    const pad = pads[padIndex];
-    if (!pad) return;
-    try {
-      const ctx = await ensureContext();
-      const buffer = await loadBuffer(pad);
-      if (buffer) {
-        const source = ctx.createBufferSource();
-        const gain = ctx.createGain();
-        gain.gain.value = Math.max(0.02, (velocity / 127) * volume);
-        source.buffer = buffer;
-        source.connect(gain).connect(ctx.destination);
-        source.start(when ? ctx.currentTime + when : 0);
-      } else {
-        // Fallback synthetic drum sound for empty pads.
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = pad.label.includes('Hat') ? 'square' : 'sine';
-        osc.frequency.value = pad.label.includes('808') ? 52 : pad.label.includes('Snare') ? 180 : 85;
-        gain.gain.setValueAtTime((velocity / 127) * 0.55, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
-        osc.connect(gain).connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.2);
-      }
-    } catch (err) {
-      console.warn('Could not play sample', pad?.label, err);
-    }
+  const playFallback = async (pad, velocity = 100) => {
+    const ctx = await ensureContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = pad.label.includes('Hat') ? 'square' : 'sine';
+    osc.frequency.value = pad.label.includes('808') ? 52 : pad.label.includes('Snare') ? 180 : 85;
+    gain.gain.setValueAtTime((velocity / 127) * 0.55, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.2);
   };
 
-  return { playPad, playClick, bufferMap, ensureContext };
-}
+  const playPad = (padIndex, velocity = 100, when = 0) => {
+    const pad = pads[padIndex];
+    if (!pad) return;
 
-function Transport({ isPlaying, onPlay, onStop, isRecording, setIsRecording, bpm, setBpm, loopBars, setLoopBars, quantize, setQuantize, swing, setSwing, metronome, setMetronome }) {
+    // Fast path: if the sample is decoded, playback is synchronous and immediate.
+    const ctx = ctxRef.current;
+    const cached = pad.url ? bufferMap.current.get(pad.url) : null;
+    if (ctx && cached) {
+      triggerBuffer(ctx, cached, velocity, when);
+      return;
+    }
+
+    // Slow path: first tap loads the sample, then plays it. Preload Kit avoids this path.
+    (async () => {
+      try {
+        const activeCtx = await ensureContext();
+        const buffer = await loadBuffer(pad);
+        if (buffer) triggerBuffer(activeCtx, buffer, velocity, when);
+        else await playFallback(pad, velocity);
+      } catch (err) {
+        console.warn('Could not play sample', pad?.label, err);
+      }
+    })();
+  };
+
+  return { playPad, playClick, bufferMap, ensureContext, preloadKit, loadStatus };
+}
+function Transport({ isPlaying, onPlay, onStop, isRecording, setIsRecording, bpm, setBpm, loopBars, setLoopBars, quantize, setQuantize, swing, setSwing, metronome, setMetronome, lowLatency, setLowLatency, preloadKit, loadStatus }) {
   return <header className="transport">
     <div className="brand"><span>JAM</span><b>ROOM</b><small>DRUM MACHINE</small></div>
     <button className="transportButton play" onClick={onPlay}><Play size={30} fill="currentColor"/> <span>PLAY</span></button>
@@ -110,6 +154,8 @@ function Transport({ isPlaying, onPlay, onStop, isRecording, setIsRecording, bpm
     <KnobCard title="QUANTIZE" value={quantize} suffix="%" setValue={setQuantize}/>
     <KnobCard title="SWING" value={swing} suffix="%" setValue={setSwing}/>
     <div className="controlCard met"><label>METRONOME</label><button className={metronome ? 'on' : ''} onClick={()=>setMetronome(v=>!v)}>{metronome?'ON':'OFF'}</button><Settings size={23}/></div>
+    <div className="controlCard met"><label>LOW LATENCY</label><button className={lowLatency ? 'on' : ''} onClick={()=>setLowLatency(v=>!v)}>{lowLatency?'ON':'OFF'}</button><small>pointerdown</small></div>
+    <div className="controlCard preload"><label>KIT CACHE</label><button onClick={preloadKit}>{loadStatus.ready ? 'READY' : 'PRELOAD'}</button><small>{loadStatus.loaded}/{loadStatus.total} loaded</small></div>
   </header>
 }
 
@@ -152,8 +198,8 @@ function PadControls({ layout, setLayout, velocity, setVelocity, noteRepeat, set
 
 function Pads({ pads, selectedPad, setSelectedPad, playPad, velocity, layout }) {
   return <>
-    <section className={`padPanel panel ${layout==='MPC'?'glow':''}`}><h3>MPC PAD LAYOUT</h3><div className="mpcPads">{pads.map((pad,i)=><button key={i} onClick={()=>{setSelectedPad(i); playPad(i, velocity)}} className={`pad ${pad.color} ${selectedPad===i?'selectedPad':''}`}><span>{i+1}</span><b>{pad.short.split('\n').map((x,j)=><React.Fragment key={j}>{x}{j===0&&<br/>}</React.Fragment>)}</b></button>)}</div></section>
-    <section className={`fpcPanel panel ${layout==='FPC'?'glow':''}`}><h3>FPC PAD LAYOUT</h3><div className="fpcPads">{pads.slice(0,14).map((pad,i)=><button key={i} onClick={()=>{setSelectedPad(i); playPad(i, velocity)}} className={`fpc ${pad.color} ${selectedPad===i?'selectedPad':''}`}><b>{pad.label}</b><small>{pad.category}</small></button>)}</div></section>
+    <section className={`padPanel panel ${layout==='MPC'?'glow':''}`}><h3>MPC PAD LAYOUT</h3><div className="mpcPads">{pads.map((pad,i)=><button key={i} onPointerDown={(e)=>{e.preventDefault(); setSelectedPad(i); playPad(i, velocity)}} className={`pad ${pad.color} ${selectedPad===i?'selectedPad':''}`}><span>{i+1}</span><b>{pad.short.split('\n').map((x,j)=><React.Fragment key={j}>{x}{j===0&&<br/>}</React.Fragment>)}</b></button>)}</div></section>
+    <section className={`fpcPanel panel ${layout==='FPC'?'glow':''}`}><h3>FPC PAD LAYOUT</h3><div className="fpcPads">{pads.slice(0,14).map((pad,i)=><button key={i} onPointerDown={(e)=>{e.preventDefault(); setSelectedPad(i); playPad(i, velocity)}} className={`fpc ${pad.color} ${selectedPad===i?'selectedPad':''}`}><b>{pad.label}</b><small>{pad.category}</small></button>)}</div></section>
   </>
 }
 
@@ -176,127 +222,33 @@ function SampleBrowser({ pads, setPads, selectedPad }) {
 }
 
 function App(){
-  const [bpm,setBpm]=useState(120);
-  const [loopBars,setLoopBars]=useState(4);
-  const [quantize,setQuantize]=useState(75);
-  const [swing,setSwing]=useState(55);
-  const [metronome,setMetronome]=useState(true);
-  const [isPlaying,setIsPlaying]=useState(false);
-  const [isRecording,setIsRecording]=useState(false);
-  const [currentStep,setCurrentStep]=useState(-1);
-  const [pattern,setPattern]=useState(()=>makePattern(8,4));
-  const [pads,setPads]=useState(defaultPads);
-  const [selectedPad,setSelectedPad]=useState(0);
-  const [velocity,setVelocity]=useState(100);
-  const [layout,setLayout]=useState('MPC');
-  const [resolution,setResolution]=useState('1/16');
-  const [bank,setBank]=useState('A');
-  const [noteRepeat,setNoteRepeat]=useState('1/16');
-  const [repeatEnabled,setRepeatEnabled]=useState(true);
-  const [muted,setMuted]=useState({});
-  const [solo,setSolo]=useState({});
-
-  const timer = useRef(null);
-  const stepRef = useRef(0);
-  const patternRef = useRef(pattern);
-  const padsRef = useRef(pads);
-  const mutedRef = useRef(muted);
-  const soloRef = useRef(solo);
-  const metronomeRef = useRef(metronome);
-  const isPlayingRef = useRef(isPlaying);
-  const loopBarsRef = useRef(loopBars);
-  const bpmRef = useRef(bpm);
-  const { playPad, playClick } = useDrumAudio(pads);
-
-  useEffect(()=>{ patternRef.current = pattern; }, [pattern]);
-  useEffect(()=>{ padsRef.current = pads; }, [pads]);
-  useEffect(()=>{ mutedRef.current = muted; }, [muted]);
-  useEffect(()=>{ soloRef.current = solo; }, [solo]);
-  useEffect(()=>{ metronomeRef.current = metronome; }, [metronome]);
-  useEffect(()=>{ isPlayingRef.current = isPlaying; }, [isPlaying]);
-  useEffect(()=>{ loopBarsRef.current = loopBars; }, [loopBars]);
-  useEffect(()=>{ bpmRef.current = bpm; }, [bpm]);
-
-  useEffect(()=>{
-    setPattern(prev=> {
-      const next = prev.map(row=> Array.from({length:loopBars*STEPS_PER_BAR},(_,i)=> row[i] || 0)).slice(0,8);
-      patternRef.current = next;
-      return next;
-    });
-  },[loopBars]);
-
+  const [bpm,setBpm]=useState(120); const [loopBars,setLoopBars]=useState(4); const [quantize,setQuantize]=useState(75); const [swing,setSwing]=useState(55); const [metronome,setMetronome]=useState(true); const [lowLatency,setLowLatency]=useState(true); const [isPlaying,setIsPlaying]=useState(false); const [isRecording,setIsRecording]=useState(false); const [currentStep,setCurrentStep]=useState(-1); const [pattern,setPattern]=useState(()=>makePattern(8,4)); const [pads,setPads]=useState(defaultPads); const [selectedPad,setSelectedPad]=useState(0); const [velocity,setVelocity]=useState(100); const [layout,setLayout]=useState('MPC'); const [resolution,setResolution]=useState('1/16'); const [bank,setBank]=useState('A'); const [noteRepeat,setNoteRepeat]=useState('1/16'); const [repeatEnabled,setRepeatEnabled]=useState(true); const [muted,setMuted]=useState({}); const [solo,setSolo]=useState({});
+  const timer = useRef(null); const stepRef = useRef(0); const { playPad, playClick, preloadKit, loadStatus } = useDrumAudio(pads, 1, lowLatency);
+  useEffect(()=>{ setPattern(prev=> prev.map(row=> Array.from({length:loopBars*STEPS_PER_BAR},(_,i)=> row[i] || 0)).slice(0,8)); },[loopBars]);
   const playCurrentStep = (step) => {
-    const livePattern = patternRef.current;
-    const liveMuted = mutedRef.current;
-    const liveSolo = soloRef.current;
-    const soloActive = Object.values(liveSolo).some(Boolean);
-
-    livePattern.forEach((row,r)=>{
-      if(row[step] && !liveMuted[r] && (!soloActive || liveSolo[r])) {
-        playPad(r, row[step]);
-      }
-    });
-
-    if (metronomeRef.current && step % 4 === 0) {
+    const soloActive = Object.values(solo).some(Boolean);
+    pattern.forEach((row,r)=>{ if(row[step] && !muted[r] && (!soloActive || solo[r])) playPad(r, row[step]); });
+    if (metronome && step % 4 === 0) {
       playClick(step % 16 === 0);
     }
   };
-
-  const stop = (reset=true)=>{
-    if(timer.current) clearInterval(timer.current);
-    timer.current=null;
-    setIsPlaying(false);
-    isPlayingRef.current = false;
-    if(reset){
-      setCurrentStep(-1);
-      stepRef.current=0;
-    }
-  };
-
   const start = () => {
-    stop(false);
-    setIsPlaying(true);
-    isPlayingRef.current = true;
-    const msPerStep = (60000 / bpmRef.current) / 4;
-    const max = loopBarsRef.current * STEPS_PER_BAR;
-    stepRef.current = 0;
-
-    const tick = () => {
-      const step = stepRef.current;
-      setCurrentStep(step);
-      playCurrentStep(step);
-      stepRef.current = (step + 1) % max;
-    };
-
-    tick(); // Play step 1 immediately instead of waiting one interval.
-    timer.current = setInterval(tick, msPerStep);
+    stop(false); setIsPlaying(true); const msPerStep = (60000 / bpm) / 4; const max = loopBars*STEPS_PER_BAR; stepRef.current = 0;
+    timer.current = setInterval(()=>{ const step=stepRef.current; setCurrentStep(step); playCurrentStep(step); stepRef.current=(step+1)%max; }, msPerStep);
   };
-
+  const stop = (reset=true)=>{ if(timer.current) clearInterval(timer.current); timer.current=null; setIsPlaying(false); if(reset){setCurrentStep(-1); stepRef.current=0;} };
   useEffect(()=>()=>stop(),[]);
-  useEffect(()=>{ if(isPlayingRef.current){ start(); } },[bpm, loopBars]);
-
+  useEffect(()=>{ if(isPlaying){ start(); } },[bpm, loopBars]);
   const recordPad = (i, vel) => {
-    playPad(i, vel);
-    setSelectedPad(i);
+    playPad(i, vel); setSelectedPad(i);
     if(!isRecording) return;
-
-    const max = loopBarsRef.current * STEPS_PER_BAR;
-    const raw = currentStep >= 0 ? currentStep : 0;
+    const raw = currentStep >=0 ? currentStep : 0;
     const strength = quantize / 100;
-    const grid = Math.round(raw);
-    const placed = Math.max(0, Math.min(max - 1, Math.round(raw + (grid - raw) * strength)));
-    const rowIndex = Math.min(i, 7);
-
-    setPattern(prev=> {
-      const next = prev.map((row,r)=> r===rowIndex ? row.map((v,c)=> c===placed ? vel : v) : row);
-      patternRef.current = next; // Make the new note playable immediately on the current pass.
-      return next;
-    });
+    const grid = Math.round(raw); const placed = Math.round(raw + (grid - raw) * strength);
+    setPattern(prev=>prev.map((row,r)=> r===Math.min(i,7) ? row.map((v,c)=> c===placed ? vel : v) : row));
   };
-
   const wrappedPlayPad = (i, vel) => recordPad(i, vel);
-
-  return <main className="app"><Transport isPlaying={isPlaying} onPlay={start} onStop={()=>stop()} isRecording={isRecording} setIsRecording={setIsRecording} bpm={bpm} setBpm={setBpm} loopBars={loopBars} setLoopBars={setLoopBars} quantize={quantize} setQuantize={setQuantize} swing={swing} setSwing={setSwing} metronome={metronome} setMetronome={setMetronome}/><Sequencer pads={pads} pattern={pattern} setPattern={setPattern} currentStep={currentStep} resolution={resolution} setResolution={setResolution} bank={bank} setBank={setBank} loopBars={loopBars} muted={muted} setMuted={setMuted} solo={solo} setSolo={setSolo}/><div className="bottom"><PadControls layout={layout} setLayout={setLayout} velocity={velocity} setVelocity={setVelocity} noteRepeat={noteRepeat} setNoteRepeat={setNoteRepeat} repeatEnabled={repeatEnabled} setRepeatEnabled={setRepeatEnabled}/><Pads pads={pads} selectedPad={selectedPad} setSelectedPad={setSelectedPad} playPad={wrappedPlayPad} velocity={velocity} layout={layout}/><SampleBrowser pads={pads} setPads={setPads} selectedPad={selectedPad}/></div></main>
+  return <main className="app"><Transport isPlaying={isPlaying} onPlay={start} onStop={()=>stop()} isRecording={isRecording} setIsRecording={setIsRecording} bpm={bpm} setBpm={setBpm} loopBars={loopBars} setLoopBars={setLoopBars} quantize={quantize} setQuantize={setQuantize} swing={swing} setSwing={setSwing} metronome={metronome} setMetronome={setMetronome} lowLatency={lowLatency} setLowLatency={setLowLatency} preloadKit={preloadKit} loadStatus={loadStatus}/><Sequencer pads={pads} pattern={pattern} setPattern={setPattern} currentStep={currentStep} resolution={resolution} setResolution={setResolution} bank={bank} setBank={setBank} loopBars={loopBars} muted={muted} setMuted={setMuted} solo={solo} setSolo={setSolo}/><div className="bottom"><PadControls layout={layout} setLayout={setLayout} velocity={velocity} setVelocity={setVelocity} noteRepeat={noteRepeat} setNoteRepeat={setNoteRepeat} repeatEnabled={repeatEnabled} setRepeatEnabled={setRepeatEnabled}/><Pads pads={pads} selectedPad={selectedPad} setSelectedPad={setSelectedPad} playPad={wrappedPlayPad} velocity={velocity} layout={layout}/><SampleBrowser pads={pads} setPads={setPads} selectedPad={selectedPad}/></div></main>
 }
 
 createRoot(document.getElementById('root')).render(<App/>);

@@ -39,3 +39,8 @@ dist
 ## Notes
 
 This is a front-end MVP. It uses the Web Audio API to play local factory WAV samples from `public/factory` and user-imported files from the browser.
+
+
+## Low Latency Pad Engine
+
+This version preloads and decodes factory samples into Web Audio buffers, uses one shared AudioContext, and triggers pads on pointerdown instead of click. Use the KIT CACHE / PRELOAD button once before finger drumming for the lowest-latency feel. True zero latency is not possible in a browser, but this removes the common first-tap sample loading delay.
