@@ -477,3 +477,102 @@ button, input, select, textarea {
   border: 1px solid rgba(167,255,223,.36);
   box-shadow: 0 0 18px rgba(157,92,255,.25);
 }
+
+/* v21 safe waveform patch: real sample waveform inside sample editor. Does not touch pad layout. */
+.sampleWaveform {
+  grid-column: span 2;
+  position: relative;
+  min-height: 72px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(157,92,255,.22), transparent 45%),
+    linear-gradient(180deg, rgba(18,14,30,.96), rgba(8,7,13,.96));
+  overflow: hidden;
+  padding: 10px 8px 9px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 8px 22px rgba(0,0,0,.28);
+}
+
+.waveBars {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 17px;
+  bottom: 13px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.waveBars i {
+  flex: 1 1 0;
+  min-width: 2px;
+  max-width: 5px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #a7ffdf, #9d5cff 55%, #ff3b9a);
+  box-shadow: 0 0 9px rgba(157,92,255,.35);
+  opacity: .92;
+}
+
+.trimSelection {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  border-radius: 13px;
+  border: 1px solid rgba(167,255,223,.48);
+  background: linear-gradient(90deg, rgba(167,255,223,.08), rgba(157,92,255,.14));
+  box-shadow: inset 0 0 18px rgba(167,255,223,.08), 0 0 18px rgba(157,92,255,.16);
+  pointer-events: none;
+}
+
+.trimShade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(0,0,0,.46);
+  backdrop-filter: blur(1px);
+  pointer-events: none;
+}
+
+.trimShade.left { left: 0; }
+.trimShade.right { right: 0; }
+
+.trimMarker {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #a7ffdf;
+  color: #050407;
+  font-size: 10px;
+  font-weight: 1000;
+  box-shadow: 0 0 16px rgba(167,255,223,.45);
+  pointer-events: none;
+}
+
+.trimMarker.end {
+  background: #ff3b9a;
+  color: #fff;
+  box-shadow: 0 0 16px rgba(255,59,154,.45);
+}
+
+.waveStatus {
+  position: absolute;
+  left: 10px;
+  bottom: 5px;
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: .14em;
+  color: rgba(245,242,255,.62);
+  text-transform: uppercase;
+}
+
+@media (max-height: 720px) {
+  .sampleWaveform { min-height: 58px; padding: 8px 7px; }
+  .waveBars { top: 14px; bottom: 11px; }
+}

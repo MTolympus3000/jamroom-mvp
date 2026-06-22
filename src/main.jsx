@@ -386,6 +386,82 @@ function MpcPads({ pads, selectedPad, setSelectedPad, onPad, velocity }) {
 }
 
 
+
+function SampleWaveform({ pad }) {
+  const [peaks, setPeaks] = useState([]);
+  const [status, setStatus] = useState('loading');
+
+  const fallbackPeaks = () => {
+    const seed = (pad?.label || 'sample').split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+    return Array.from({ length: 48 }, (_, i) => {
+      const a = Math.abs(Math.sin((i + 1) * (seed % 17 + 3) * 0.19));
+      const b = Math.abs(Math.cos((i + 3) * (seed % 11 + 5) * 0.13));
+      return Math.max(0.12, Math.min(1, (a * 0.65 + b * 0.35)));
+    });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const buildWaveform = async () => {
+      if (!pad?.url) {
+        setPeaks(fallbackPeaks());
+        setStatus('empty');
+        return;
+      }
+      setStatus('loading');
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioCtx();
+        const res = await fetch(pad.url);
+        const arr = await res.arrayBuffer();
+        const buffer = await ctx.decodeAudioData(arr.slice(0));
+        const data = buffer.getChannelData(0);
+        const barCount = 56;
+        const blockSize = Math.max(1, Math.floor(data.length / barCount));
+        const nextPeaks = [];
+        for (let bar = 0; bar < barCount; bar++) {
+          let peak = 0;
+          const start = bar * blockSize;
+          const end = Math.min(data.length, start + blockSize);
+          for (let i = start; i < end; i++) peak = Math.max(peak, Math.abs(data[i]));
+          nextPeaks.push(peak);
+        }
+        const max = Math.max(...nextPeaks, 0.001);
+        const normalized = nextPeaks.map(v => Math.max(0.08, v / max));
+        if (!cancelled) {
+          setPeaks(pad.reverseSample ? normalized.reverse() : normalized);
+          setStatus('ready');
+        }
+        try { await ctx.close(); } catch {}
+      } catch {
+        if (!cancelled) {
+          setPeaks(fallbackPeaks());
+          setStatus('fallback');
+        }
+      }
+    };
+    buildWaveform();
+    return () => { cancelled = true; };
+  }, [pad?.url, pad?.label, pad?.reverseSample]);
+
+  const start = Math.max(0, Math.min(99, pad?.trimStart ?? 0));
+  const end = Math.max(start + 1, Math.min(100, pad?.trimEnd ?? 100));
+
+  return <div className="sampleWaveform editorWide">
+    <div className="waveBars" aria-label="sample waveform">
+      {(peaks.length ? peaks : fallbackPeaks()).map((peak, i) => (
+        <i key={i} style={{ height: `${Math.max(8, peak * 100)}%` }} />
+      ))}
+    </div>
+    <div className="trimShade left" style={{ width: `${start}%` }} />
+    <div className="trimShade right" style={{ left: `${end}%`, width: `${100 - end}%` }} />
+    <div className="trimSelection" style={{ left: `${start}%`, width: `${end - start}%` }} />
+    <b className="trimMarker start" style={{ left: `${start}%` }}>S</b>
+    <b className="trimMarker end" style={{ left: `${end}%` }}>E</b>
+    <span className="waveStatus">{status === 'ready' ? 'WAVEFORM' : status === 'fallback' ? 'WAVEFORM PREVIEW' : status === 'empty' ? 'NO SAMPLE' : 'LOADING WAVE'}</span>
+  </div>;
+}
+
 function TrackEditor({ padIndex, pads, setPads, onClose, onPreview }) {
   const [editorPage, setEditorPage] = useState(0);
   const editorSwipeRef = useRef({ active:false, startX:0, startY:0, switched:false });
@@ -437,9 +513,9 @@ function TrackEditor({ padIndex, pads, setPads, onClose, onPreview }) {
       <div className="editorSelectRow"><span>Voice</span><select value={pad.voiceMode || 'poly'} onChange={e=>setPadValue('voiceMode', e.target.value)}>{['poly','mono'].map(mode=><option key={mode} value={mode}>{mode}</option>)}</select></div>
       <div className="editorActionRow"><button className={pad.mute?'active':''} onClick={()=>setPadValue('mute', !pad.mute)}>Mute</button><button className={pad.solo?'active':''} onClick={()=>setPadValue('solo', !pad.solo)}>Solo</button><button onClick={onClose}>Close</button></div>
     </div> : <div className="minimalEditorGrid sampleEditorGrid">
+      <SampleWaveform pad={pad} />
       <label className="editorControl editorWide"><span>Start</span><input type="range" min="0" max="95" step="1" value={pad.trimStart ?? 0} onChange={e=>setPadValue('trimStart', Math.min(Number(e.target.value), (pad.trimEnd ?? 100)-1))}/><b>{pad.trimStart ?? 0}%</b></label>
       <label className="editorControl editorWide"><span>End</span><input type="range" min="5" max="100" step="1" value={pad.trimEnd ?? 100} onChange={e=>setPadValue('trimEnd', Math.max(Number(e.target.value), (pad.trimStart ?? 0)+1))}/><b>{pad.trimEnd ?? 100}%</b></label>
-      <div className="trimPreview editorWide"><span style={{left:`${pad.trimStart ?? 0}%`, width:`${Math.max(2,(pad.trimEnd ?? 100)-(pad.trimStart ?? 0))}%`}} /></div>
       <div className="editorActionRow"><button className={pad.loopSample?'active':''} onClick={()=>setPadValue('loopSample', !pad.loopSample)}>Loop</button><button className={pad.reverseSample?'active':''} onClick={()=>setPadValue('reverseSample', !pad.reverseSample)}>Reverse</button><button onClick={()=>onPreview(padIndex)}>Preview</button></div>
     </div>}
   </section>
