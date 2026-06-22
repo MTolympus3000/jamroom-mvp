@@ -6,17 +6,10 @@ import './styles.css';
 
 const TICKS_PER_BAR = 96;
 const GRID_OPTIONS = [
-  { label:'1 Bar', ticks:96 },
-  { label:'1/2 Bar', ticks:48 },
-  { label:'1/4 Bar', ticks:24 },
-  { label:'1 Beat', ticks:24 },
-  { label:'1/2 Beat', ticks:12 },
-  { label:'1/4 Beat', ticks:6 },
-  { label:'1/8 Beat', ticks:3 },
-  { label:'1/4T', ticks:16 },
-  { label:'1/8T', ticks:8 },
-  { label:'1/16T', ticks:4 },
-  { label:'1/32T', ticks:2 },
+  { label:'1/4 Beat', ticks:24 },
+  { label:'1/8 Beat', ticks:12 },
+  { label:'1/16 Beat', ticks:6 },
+  { label:'1/32 Beat', ticks:3 },
 ];
 const getGridTicks = (label) => GRID_OPTIONS.find(g => g.label === label)?.ticks || 6;
 const snapTick = (tick, gridTicks, strength = 1) => {
@@ -152,7 +145,7 @@ function useDrumAudio(pads, volume = 1, lowLatency = true) {
   return { playPad, playClick, preloadKit, loadStatus };
 }
 
-function MiniTransport({ isPlaying, start, stop, isRecording, setIsRecording, bpm, loopBars, currentStep }) {
+function MiniTransport({ isPlaying, start, stop, isRecording, requestRecord, isCountingIn, bpm, loopBars, currentStep }) {
   const bar = currentStep >= 0 ? Math.floor(currentStep / TICKS_PER_BAR) + 1 : 1;
   const beat = currentStep >= 0 ? Math.floor((currentStep % TICKS_PER_BAR) / 24) + 1 : 1;
   return <header className="miniTransport">
@@ -161,8 +154,8 @@ function MiniTransport({ isPlaying, start, stop, isRecording, setIsRecording, bp
     <div className="statusPill">{loopBars} BARS</div>
     <button className="iconBtn play" onPointerDown={(e)=>{e.preventDefault(); start();}} title="Play"><Play size={18} fill="currentColor"/></button>
     <button className="iconBtn" onPointerDown={(e)=>{e.preventDefault(); stop();}} title="Stop"><Square size={16} fill="currentColor"/></button>
-    <button className={`iconBtn rec ${isRecording?'active':''}`} onPointerDown={(e)=>{e.preventDefault(); setIsRecording(v=>!v);}} title="Record"><Circle size={16} fill="currentColor"/></button>
-    <div className="counter">{bar}.{beat}</div>
+    <button className={`iconBtn rec ${isRecording?'active':''} ${isCountingIn?'armed':''}`} onPointerDown={(e)=>{e.preventDefault(); requestRecord();}} title="Record / Count-In"><Circle size={16} fill="currentColor"/></button>
+    <div className="counter">{isCountingIn ? 'COUNT' : `${bar}.${beat}`}</div>
   </header>
 }
 
@@ -239,12 +232,13 @@ function SamplesPage({ pads, setPads, selectedPad, setSelectedPad }) {
   </div>
 }
 
-function SettingsPage({ bpm,setBpm,loopBars,setLoopBars,quantize,setQuantize,swing,setSwing,metronome,setMetronome,lowLatency,setLowLatency,preloadKit,loadStatus,snapToGrid,setSnapToGrid,gridResolution,setGridResolution,clearPattern,copyBar }) {
+function SettingsPage({ bpm,setBpm,loopBars,setLoopBars,quantize,setQuantize,swing,setSwing,metronome,setMetronome,lowLatency,setLowLatency,preloadKit,loadStatus,snapToGrid,setSnapToGrid,gridResolution,setGridResolution,countInBars,setCountInBars,clearPattern,copyBar }) {
   return <div className="settingsPage pageScroll">
     <h2>Settings</h2>
     <div className="settingsGrid">
       <label>BPM<input type="number" value={bpm} min="40" max="240" onChange={e=>setBpm(Number(e.target.value)||120)}/></label>
       <label>Loop Bars<select value={loopBars} onChange={e=>setLoopBars(Number(e.target.value))}>{[1,2,4,8,16].map(x=><option key={x}>{x}</option>)}</select></label>
+      <label>Count-In<select value={countInBars} onChange={e=>setCountInBars(Number(e.target.value))}>{[0,1,2,4].map(x=><option key={x} value={x}>{x === 0 ? 'Off' : `${x} Bar${x>1?'s':''}`}</option>)}</select></label>
       <label>Grid<select value={gridResolution} onChange={e=>setGridResolution(e.target.value)}>{GRID_OPTIONS.map(g=><option key={g.label}>{g.label}</option>)}</select></label>
       <label>Quantize Strength<input type="range" min="0" max="100" value={quantize} onChange={e=>setQuantize(Number(e.target.value))}/><b>{quantize}%</b></label>
       <label>Swing<input type="range" min="50" max="75" value={swing} onChange={e=>setSwing(Number(e.target.value))}/><b>{swing}%</b></label>
@@ -267,16 +261,20 @@ function App(){
   const [lowLatency,setLowLatency]=useState(true);
   const [isPlaying,setIsPlaying]=useState(false);
   const [isRecording,setIsRecording]=useState(false);
+  const [isCountingIn,setIsCountingIn]=useState(false);
+  const [countText,setCountText]=useState('');
+  const [countInBars,setCountInBars]=useState(1);
   const [currentStep,setCurrentStep]=useState(-1);
   const [pattern,setPattern]=useState(()=>makePattern(16,4));
   const [pads,setPads]=useState(defaultPads);
   const [selectedPad,setSelectedPad]=useState(0);
   const [velocity]=useState(110);
-  const [gridResolution,setGridResolution]=useState('1/16T');
+  const [gridResolution,setGridResolution]=useState('1/16 Beat');
   const [snapToGrid,setSnapToGrid]=useState(true);
   const [muted,setMuted]=useState({});
   const [page,setPage]=useState('play');
   const timer = useRef(null);
+  const countTimer = useRef(null);
   const stepRef = useRef(0);
   const currentStepRef = useRef(-1);
   const patternRef = useRef(pattern);
@@ -313,7 +311,11 @@ function App(){
 
   const stop = (reset=true)=>{
     if(timer.current) clearInterval(timer.current);
+    if(countTimer.current) clearTimeout(countTimer.current);
     timer.current=null;
+    countTimer.current=null;
+    setIsCountingIn(false);
+    setCountText('');
     setIsPlaying(false);
     if(reset){ setCurrentStep(-1); currentStepRef.current = -1; stepRef.current=0; }
   };
@@ -338,6 +340,46 @@ function App(){
     }, msPerStep);
   };
 
+  const requestRecord = async () => {
+    if (isRecording || isCountingIn) {
+      if (countTimer.current) clearTimeout(countTimer.current);
+      countTimer.current = null;
+      setIsCountingIn(false);
+      setCountText('');
+      setIsRecording(false);
+      return;
+    }
+
+    if (countInBars === 0) {
+      if (!isPlaying) await start();
+      setIsRecording(true);
+      return;
+    }
+
+    setIsCountingIn(true);
+    const totalBeats = countInBars * 4;
+    const beatMs = 60000 / bpmRef.current;
+    let beatIndex = 0;
+
+    const tick = async () => {
+      if (beatIndex >= totalBeats) {
+        setIsCountingIn(false);
+        setCountText('REC');
+        if (!timer.current) await start();
+        setIsRecording(true);
+        countTimer.current = setTimeout(() => setCountText(''), 280);
+        return;
+      }
+      const beatsLeft = totalBeats - beatIndex;
+      setCountText(String(beatsLeft));
+      playClick(beatIndex % 4 === 0);
+      beatIndex += 1;
+      countTimer.current = setTimeout(tick, beatMs);
+    };
+
+    tick();
+  };
+
   useEffect(()=>()=>stop(),[]);
   useEffect(()=>{ if(isPlaying) start(); },[bpm, loopBars]);
 
@@ -358,9 +400,10 @@ function App(){
   }));
 
   return <main className="appLocked">
-    {page === 'play' && <PlayPage transport={{isPlaying,start,stop,isRecording,setIsRecording,bpm,loopBars,currentStep}} sequencer={{pads,pattern,setPatternLive,currentStep,loopBars,gridResolution,snapToGrid,muted,setMuted}} pads={{pads,selectedPad,setSelectedPad,onPad:recordPad,velocity}} />}
+    {page === 'play' && <PlayPage transport={{isPlaying,start,stop,isRecording,requestRecord,isCountingIn,bpm,loopBars,currentStep}} sequencer={{pads,pattern,setPatternLive,currentStep,loopBars,gridResolution,snapToGrid,muted,setMuted}} pads={{pads,selectedPad,setSelectedPad,onPad:recordPad,velocity}} />}
     {page === 'samples' && <SamplesPage pads={pads} setPads={setPads} selectedPad={selectedPad} setSelectedPad={setSelectedPad}/>} 
-    {page === 'settings' && <SettingsPage bpm={bpm} setBpm={setBpm} loopBars={loopBars} setLoopBars={setLoopBars} quantize={quantize} setQuantize={setQuantize} swing={swing} setSwing={setSwing} metronome={metronome} setMetronome={setMetronome} lowLatency={lowLatency} setLowLatency={setLowLatency} preloadKit={preloadKit} loadStatus={loadStatus} snapToGrid={snapToGrid} setSnapToGrid={setSnapToGrid} gridResolution={gridResolution} setGridResolution={setGridResolution} clearPattern={clearPattern} copyBar={copyBar}/>} 
+    {page === 'settings' && <SettingsPage bpm={bpm} setBpm={setBpm} loopBars={loopBars} setLoopBars={setLoopBars} quantize={quantize} setQuantize={setQuantize} swing={swing} setSwing={setSwing} metronome={metronome} setMetronome={setMetronome} lowLatency={lowLatency} setLowLatency={setLowLatency} preloadKit={preloadKit} loadStatus={loadStatus} snapToGrid={snapToGrid} setSnapToGrid={setSnapToGrid} gridResolution={gridResolution} setGridResolution={setGridResolution} countInBars={countInBars} setCountInBars={setCountInBars} clearPattern={clearPattern} copyBar={copyBar}/>} 
+    {(isCountingIn || countText) && <div className="countOverlay"><b>{countText}</b><span>{isCountingIn ? 'Count-In' : 'Recording'}</span></div>}
     <nav className="bottomNav">
       <button className={page==='play'?'active':''} onClick={()=>setPage('play')}><Music2 size={17}/>Play</button>
       <button className={page==='samples'?'active':''} onClick={()=>setPage('samples')}><Folder size={17}/>Samples</button>
