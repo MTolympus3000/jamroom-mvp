@@ -354,55 +354,28 @@ function MpcPads({ pads, selectedPad, setSelectedPad, onPad, velocity }) {
 }
 
 
-function TrackEditor({ padIndex, pads, setPads, onClose, onPreview, openSamples }) {
+function TrackEditor({ padIndex, pads, setPads, onClose, onPreview }) {
   const pad = pads[padIndex];
   const setPadValue = (key, value) => setPads(prev => prev.map((p, i) => i === padIndex ? { ...p, [key]: value } : p));
-  const importSample = (file) => {
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    const name = file.name.replace(/\.[^/.]+$/, '');
-    setPads(prev => prev.map((p, i) => i === padIndex ? { ...p, label: name.slice(0, 22), short: name.slice(0, 16).replaceAll(' ', '\n'), sample: name, url, category: 'USER' } : p));
-  };
-  const waveBars = Array.from({ length: 44 }, (_, i) => ((Math.sin(i * 1.7) + 1) * 18 + (i % 7) * 3 + 8));
   if (!pad) return null;
-  return <section className="trackEditor">
-    <div className="editorTop">
+  return <section className="trackEditor fixedPadEditor">
+    <div className="editorTop miniEditorTop">
       <button className="backBtn" onClick={onClose}>‹</button>
-      <div className="editorTitle"><small>TRACK EDITOR</small><b><i className={pad.color}></i>{padIndex + 1} {pad.label}</b></div>
-      <button className="previewBtn" onClick={() => onPreview(padIndex)}>▶ Preview</button>
+      <div className="editorTitle"><small>PAD EDITOR</small><b><i className={pad.color}></i>{padIndex + 1} {pad.label}</b></div>
+      <button className="previewBtn" onClick={() => onPreview(padIndex)}>▶</button>
       <button className="closeBtn" onClick={onClose}>×</button>
     </div>
 
-    <div className="editorGrid">
-      <div className="editorCard sampleCard">
-        <h3>Sample</h3>
-        <div className="sampleName">{pad.sample || 'Empty'}</div>
-        <div className="miniWave">{waveBars.map((h,i)=><span key={i} style={{height:`${h}%`}} />)}</div>
-        <div className="editorButtons">
-          <button onClick={openSamples}>Browse</button>
-          <button onClick={openSamples}>Replace</button>
-          <label>Import<input type="file" accept="audio/*,.wav,.mp3,.aiff" onChange={e=>importSample(e.target.files?.[0])}/></label>
-        </div>
-      </div>
+    <div className="minimalEditorGrid">
+      <label className="editorControl"><span>Volume</span><input type="range" min="0" max="2" step="0.01" value={pad.volume ?? 1} onChange={e=>setPadValue('volume', Number(e.target.value))}/><b>{(((pad.volume ?? 1)-1)*12).toFixed(1)} dB</b></label>
+      <label className="editorControl"><span>Pan</span><input type="range" min="-1" max="1" step="0.01" value={pad.pan ?? 0} onChange={e=>setPadValue('pan', Number(e.target.value))}/><b>{(pad.pan ?? 0) === 0 ? 'C' : (pad.pan ?? 0) < 0 ? 'L' : 'R'}</b></label>
+      <label className="editorControl"><span>Pitch</span><input type="range" min="-24" max="24" step="1" value={pad.tune ?? 0} onChange={e=>setPadValue('tune', Number(e.target.value))}/><b>{pad.tune ?? 0} st</b></label>
+      <label className="editorControl"><span>Fine</span><input type="range" min="-100" max="100" step="1" value={pad.fine ?? 0} onChange={e=>setPadValue('fine', Number(e.target.value))}/><b>{pad.fine ?? 0} ct</b></label>
 
-      <div className="editorCard mixerCard">
-        <h3>Mixer</h3>
-        <label>Volume <input type="range" min="0" max="2" step="0.01" value={pad.volume ?? 1} onChange={e=>setPadValue('volume', Number(e.target.value))}/><b>{(((pad.volume ?? 1)-1)*12).toFixed(1)} dB</b></label>
-        <label>Pan <input type="range" min="-1" max="1" step="0.01" value={pad.pan ?? 0} onChange={e=>setPadValue('pan', Number(e.target.value))}/><b>{(pad.pan ?? 0) === 0 ? 'C' : (pad.pan ?? 0) < 0 ? 'L' : 'R'}</b></label>
-        <div className="twoButtons"><button className={pad.mute?'active':''} onClick={()=>setPadValue('mute', !pad.mute)}>Mute</button><button className={pad.solo?'active':''} onClick={()=>setPadValue('solo', !pad.solo)}>Solo</button></div>
-      </div>
+      <div className="editorSelectRow"><span>Choke</span><select value={pad.chokeGroup ?? 0} onChange={e=>setPadValue('chokeGroup', Number(e.target.value))}>{[0,1,2,3,4,5,6,7,8].map(g=><option key={g} value={g}>{g===0?'Off':`Group ${g}`}</option>)}</select></div>
+      <div className="editorSelectRow"><span>Voice</span><select value={pad.voiceMode || 'poly'} onChange={e=>setPadValue('voiceMode', e.target.value)}>{['poly','mono'].map(mode=><option key={mode} value={mode}>{mode}</option>)}</select></div>
 
-      <div className="editorCard"><h3>Pitch</h3><label>Tune <input type="range" min="-24" max="24" step="1" value={pad.tune ?? 0} onChange={e=>setPadValue('tune', Number(e.target.value))}/><b>{pad.tune ?? 0} st</b></label><label>Fine <input type="range" min="-100" max="100" step="1" value={pad.fine ?? 0} onChange={e=>setPadValue('fine', Number(e.target.value))}/><b>{pad.fine ?? 0} ct</b></label></div>
-
-      <div className="editorCard"><h3>Envelope</h3><label>Attack <input type="range" min="0" max="500" value={pad.attack ?? 0} onChange={e=>setPadValue('attack', Number(e.target.value))}/><b>{pad.attack ?? 0} ms</b></label><label>Decay <input type="range" min="0" max="2000" value={pad.decay ?? 250} onChange={e=>setPadValue('decay', Number(e.target.value))}/><b>{pad.decay ?? 250} ms</b></label><label>Release <input type="range" min="0" max="2000" value={pad.release ?? 120} onChange={e=>setPadValue('release', Number(e.target.value))}/><b>{pad.release ?? 120} ms</b></label></div>
-
-      <div className="editorCard wide"><h3>Choke Group</h3><div className="segmented">{[0,1,2,3,4,5].map(g=><button key={g} className={(pad.chokeGroup ?? 0)===g?'active':''} onClick={()=>setPadValue('chokeGroup', g)}>{g===0?'Off':g}</button>)}</div><p>Notes in the same group cut each other off.</p></div>
-
-      <div className="editorCard wide"><h3>Voice Mode</h3><div className="segmented">{['poly','mono','legato'].map(mode=><button key={mode} className={(pad.voiceMode || 'poly')===mode?'active':''} onClick={()=>setPadValue('voiceMode', mode)}>{mode}</button>)}</div><p>Use Mono for 808s or samples that should not overlap.</p></div>
-
-      <div className="editorCard wide"><h3>Effects</h3><label>Filter <input type="range" min="0" max="100" value={pad.filter ?? 0} onChange={e=>setPadValue('filter', Number(e.target.value))}/><b>{pad.filter ?? 0}%</b></label><label>Distortion <input type="range" min="0" max="100" value={pad.distortion ?? 0} onChange={e=>setPadValue('distortion', Number(e.target.value))}/><b>{pad.distortion ?? 0}%</b></label><label>Reverb Send <input type="range" min="0" max="100" value={pad.reverb ?? 0} onChange={e=>setPadValue('reverb', Number(e.target.value))}/><b>{pad.reverb ?? 0}%</b></label></div>
-
-      <div className="editorCard wide sampleEdit"><h3>Sample Edit</h3><div className="bigWave">{Array.from({ length: 80 }, (_, i) => <span key={i} style={{height:`${18 + ((Math.sin(i*.55)+1)*34)}%`}} />)}</div><div className="editorButtons"><button>Start</button><button>End</button><button>Normalize</button><button>Fade In</button><button>Fade Out</button><button>Reverse</button></div></div>
+      <div className="editorActionRow"><button className={pad.mute?'active':''} onClick={()=>setPadValue('mute', !pad.mute)}>Mute</button><button className={pad.solo?'active':''} onClick={()=>setPadValue('solo', !pad.solo)}>Solo</button><button onClick={onClose}>Close</button></div>
     </div>
   </section>
 }
@@ -453,7 +426,7 @@ function SettingsPage({ bpm,setBpm,loopBars,setLoopBars,quantize,setQuantize,swi
   return <div className="settingsPage pageScroll">
     <h2>Settings</h2>
     <div className="settingsGrid">
-      <label>BPM<input type="number" value={bpm} min="40" max="240" onChange={e=>setBpm(Number(e.target.value)||120)}/></label>
+      <div className="bpmStepper"><span>BPM</span><button onClick={()=>setBpm(v=>Math.max(40, v-1))}>−</button><b>{bpm}</b><button onClick={()=>setBpm(v=>Math.min(240, v+1))}>+</button></div>
       <label>Loop Bars<select value={loopBars} onChange={e=>setLoopBars(Number(e.target.value))}>{[1,2,4,8,16].map(x=><option key={x}>{x}</option>)}</select></label>
       <label>Count-In<select value={countInBars} onChange={e=>setCountInBars(Number(e.target.value))}>{[0,1,2,4].map(x=><option key={x} value={x}>{x === 0 ? 'Off' : `${x} Bar${x>1?'s':''}`}</option>)}</select></label>
       <label>Polyphony<select value={maxPolyphony} onChange={e=>setMaxPolyphony(Number(e.target.value))}>{[16,32,64].map(x=><option key={x} value={x}>{x} Voices</option>)}</select></label>

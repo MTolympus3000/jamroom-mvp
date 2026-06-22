@@ -1,20 +1,19 @@
-# JamRoom Drum Machine v14
+# JamRoom Drum Machine v15
 
-Focused MPC-style drum machine with sequencer and track/pad editor.
+Fixed-layout MPC performance build.
 
-## Added in v14
+## Added in v15
 
-- Tap a sequencer track name to open the Track Editor.
-- Tap the same track name again or use Close to return to pads.
-- Editor replaces the pad area while the sequencer stays visible.
-- Playback continues while editing.
-- Preview button auditions the selected pad.
-- Browse/Replace opens the Samples page for that pad.
-- Import allows assigning a user audio file directly.
-- Per-pad volume, pan, tune, fine tune, envelope controls, choke group, voice mode, effects placeholders, and sample edit placeholders.
-- Volume, pan, tune, mute, solo, mono/poly settings are wired into playback behavior.
+- Fixed Play screen layout so pads do not disappear
+- Minimal fixed Pad Editor replaces only the pad area
+- Sequencer stays visible while editing a track
+- Removed sample browser/import from the Pad Editor
+- Pad Editor only contains Preview, Volume, Pan, Pitch, Fine, Choke Group, Voice Mode, Mute/Solo, Close
+- Replaced BPM keyboard input with +/- stepper controls
+- Added viewport and CSS protections to reduce iPhone Safari zoom/layout shifting
+- Maintains low-latency pads, snap grid, count-in, first-pass playback, follow playhead, polyphony, and choke groups
 
-## Run locally
+## Run
 
 ```bash
 npm install
@@ -25,4 +24,10 @@ npm run dev
 
 ```bash
 npm run build
+```
+
+## Commit message
+
+```text
+Add fixed layout and minimal pad editor
 ```

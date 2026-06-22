@@ -48,3 +48,255 @@
 .trackEditor{min-height:0;border:1px solid rgba(255,255,255,.1);background:linear-gradient(180deg,rgba(26,22,37,.96),rgba(12,10,18,.96));border-radius:20px;padding:10px;overflow:auto;touch-action:pan-y;overscroll-behavior:contain}
 .editorTop{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:34px 1fr auto 34px;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;background:linear-gradient(180deg,rgba(26,22,37,.98),rgba(26,22,37,.82));backdrop-filter:blur(10px)}
 .backBtn,.closeBtn,.previewBtn{height:32px;border-radius:10px;background:#211b31;border:1px solid rgba(255,255,255,.1);font-weight:900}.backBtn,.closeBtn{font-size:24px;line-height:1}.previewBtn{font-size:11px;padding:0 10px;color:#fff}.editorTitle{min-width:0}.editorTitle small{display:block;font-size:10px;letter-spacing:.18em;color:#bdb2ff;font-weight:1000}.editorTitle b{display:flex;align-items:center;gap:8px;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.editorTitle i{width:10px;height:22px;border-radius:999px;display:inline-block;flex:0 0 auto}.editorGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.editorCard{border:1px solid rgba(255,255,255,.09);background:rgba(7,6,12,.55);border-radius:14px;padding:10px;min-width:0}.editorCard.wide{grid-column:span 2}.editorCard h3{margin:0 0 9px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#fff}.sampleName{font-size:12px;color:#ede8ff;text-align:center;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.miniWave,.bigWave{height:54px;display:flex;align-items:center;gap:1px;background:rgba(255,59,107,.08);border-radius:10px;padding:6px;overflow:hidden}.miniWave span,.bigWave span{width:2px;background:#ff3b6b;border-radius:99px;box-shadow:0 0 8px rgba(255,59,107,.35)}.bigWave{height:72px;margin-bottom:8px}.bigWave span{width:3px}.editorButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:8px}.sampleEdit .editorButtons{grid-template-columns:repeat(3,1fr)}.editorButtons button,.editorButtons label,.segmented button,.twoButtons button{min-height:34px;border-radius:9px;background:#211b31;border:1px solid rgba(255,255,255,.1);display:grid;place-items:center;font-weight:900;font-size:11px;color:#ede8ff}.editorButtons input{display:none}.editorCard label{display:grid;grid-template-columns:1fr;gap:6px;margin:8px 0;font-size:11px;color:#cfc7e8}.editorCard label b{font-size:10px;color:#a99eff}.editorCard input[type=range]{width:100%;accent-color:#9d5cff}.twoButtons{display:grid;grid-template-columns:1fr 1fr;gap:8px}.twoButtons button.active,.segmented button.active{background:linear-gradient(180deg,#ff3b8a,#9836ff);border-color:rgba(255,255,255,.2);color:white}.segmented{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}.editorCard p{font-size:10px;line-height:1.35;color:#9f95b8;margin:8px 0 0}.mixerCard .twoButtons{margin-top:8px}@media (max-width:430px){.editorGrid{grid-template-columns:1fr}.editorCard.wide{grid-column:span 1}.trackEditor{padding:9px}.editorButtons,.sampleEdit .editorButtons{grid-template-columns:repeat(3,1fr)}.segmented{grid-template-columns:repeat(3,1fr)}}
+
+/* v15: fixed mobile layout + minimal pad editor */
+html, body, #root {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+button, input, select, textarea {
+  font-size: 16px;
+}
+
+.appLocked {
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  padding: 8px 8px 62px;
+}
+
+.playPage {
+  height: calc(100dvh - 70px);
+  max-height: calc(100dvh - 70px);
+  display: grid;
+  grid-template-rows: 42px minmax(160px, 43%) minmax(190px, 1fr);
+  gap: 8px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.miniTransport {
+  height: 42px;
+  min-height: 42px;
+  border-radius: 13px;
+  grid-template-columns: 1fr auto auto 34px 34px 34px auto;
+  gap: 5px;
+  padding: 5px;
+}
+
+.statusPill, .counter {
+  padding: 6px 7px;
+  font-size: 10px;
+}
+
+.iconBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+
+.playSequencer {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  grid-template-rows: 22px 16px 1fr;
+  padding: 8px;
+}
+
+.seqRows {
+  overflow: hidden;
+  min-height: 0;
+  max-height: 100%;
+  touch-action: none;
+}
+
+.mpcOnly,
+.trackEditor.fixedPadEditor {
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.mpcOnly {
+  padding: 9px;
+  gap: 9px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+}
+
+.mpcPad {
+  min-height: 0;
+  border-radius: 16px;
+}
+
+/* Editor replaces only the pad area. No sample browser, no scrolling, no keyboard. */
+.trackEditor.fixedPadEditor {
+  border: 1px solid rgba(255,255,255,.1);
+  background: linear-gradient(180deg, rgba(24,20,36,.97), rgba(10,8,16,.97));
+  border-radius: 20px;
+  padding: 9px;
+  display: grid;
+  grid-template-rows: 38px 1fr;
+  gap: 8px;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+.miniEditorTop {
+  position: relative;
+  top: auto;
+  grid-template-columns: 32px minmax(0, 1fr) 42px 32px;
+  height: 38px;
+  min-height: 38px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.miniEditorTop .previewBtn,
+.miniEditorTop .backBtn,
+.miniEditorTop .closeBtn {
+  height: 32px;
+}
+
+.minimalEditorGrid {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  overflow: hidden;
+}
+
+.editorControl,
+.editorSelectRow,
+.editorActionRow {
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(7,6,12,.55);
+  border-radius: 14px;
+  padding: 8px;
+  min-height: 0;
+}
+
+.editorControl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.editorControl span,
+.editorSelectRow span {
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #b8aecf;
+  font-weight: 1000;
+}
+
+.editorControl b {
+  font-size: 11px;
+  color: #fff;
+}
+
+.editorControl input[type=range] {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: #9d5cff;
+}
+
+.editorSelectRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+
+.editorSelectRow select {
+  width: 100%;
+  min-height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: #15101f;
+  color: #fff;
+  padding: 6px 8px;
+}
+
+.editorActionRow {
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.editorActionRow button {
+  border-radius: 11px;
+  background: #211b31;
+  border: 1px solid rgba(255,255,255,.1);
+  font-weight: 1000;
+  color: #ede8ff;
+}
+
+.editorActionRow button.active {
+  background: linear-gradient(180deg, #ff3b8a, #9836ff);
+  color: #fff;
+}
+
+.bpmStepper {
+  border: 1px solid rgba(255,255,255,.09);
+  background: rgba(18,16,28,.88);
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 46px 70px 46px;
+  align-items: center;
+  gap: 8px;
+}
+
+.bpmStepper span {
+  color: #aba2be;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.bpmStepper b {
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  background: #0e0c15;
+  border-radius: 12px;
+  font-size: 20px;
+}
+
+.bpmStepper button {
+  min-height: 42px;
+  border-radius: 12px;
+  background: #211b31;
+  border: 1px solid rgba(255,255,255,.1);
+  font-size: 22px;
+  font-weight: 1000;
+}
+
+@media (max-height: 720px) {
+  .playPage { grid-template-rows: 40px minmax(138px, 40%) minmax(170px, 1fr); gap: 7px; }
+  .mpcPad b { font-size: 11px; }
+  .mpcPad span { top: 6px; left: 8px; font-size: 10px; }
+  .minimalEditorGrid { gap: 6px; }
+  .editorControl, .editorSelectRow, .editorActionRow { padding: 7px; border-radius: 12px; }
+}
+
+@media (min-width:800px) {
+  .playPage { grid-template-rows: 44px minmax(220px, 48%) minmax(300px, 1fr); }
+}
