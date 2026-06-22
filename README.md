@@ -1,18 +1,21 @@
 # JamRoom MVP
 
-A first web MVP for a collaborative loop/jam app.
+A collaborative loop-building app prototype for asynchronous jam sessions.
 
-## Features included
+## Current features
 
-- Jam project settings: title, BPM, bars, key, chord mode
-- Audio recorder for voice/humming/beatbox layers
+- Global project settings: title, BPM, bars, key, mode, chord density
 - One-finger chord player
-- Diatonic 7th chords in the selected key
-- Piano-roll style note viewer/editor
-- Quantize button
-- Copy first 2 bars to full loop
-- Drum step sequencer
-- Copy 2-bar drum pattern across the loop
+- Mode selector: Ionian, Dorian, Phrygian, Lydian, Mixolydian, Aeolian, Locrian
+- Density selector: dyad, triad, tetrad, pentad, hexad, heptad
+- Piano roll grid with manual note entry, delete, and quantize
+- Drum pads and 32-step drum sequencer
+- Copy first 2 drum bars across the loop
+- Audio recording from microphone
+- Import audio files such as WAV/MP3
+- DAW-style waveform timeline with start-beat sliders
+- Track mute, delete, volume, and master volume
+- Local project save for MIDI/drum settings
 
 ## Run locally
 
@@ -21,12 +24,35 @@ npm install
 npm run dev
 ```
 
-Then open the local URL shown by Vite.
+## Build for Netlify
 
-## Next build steps
+```bash
+npm run build
+```
 
-1. Add real drag-and-drop note editing.
-2. Add proper transport playback with metronome.
-3. Add Supabase login, project saving, and invite links.
-4. Upload audio recordings to Supabase Storage.
-5. Add friend collaboration and comments.
+Publish directory:
+
+```text
+dist
+```
+
+## Planned architecture
+
+Future folders should stay organized like this:
+
+```text
+src/
+  components/       reusable UI components
+  lib/              audio engine, theory engine, storage helpers
+  data/             music constants, presets, sample metadata
+  styles/           CSS modules or global styles
+```
+
+## Future cloud features
+
+- Supabase login
+- Jam room invite links
+- Audio upload to Supabase Storage
+- Project database sync
+- Comments per layer
+- Export WAV/MIDI/stems
