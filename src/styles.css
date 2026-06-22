@@ -375,3 +375,71 @@ button, input, select, textarea {
   .playSequencer { flex-basis: clamp(145px, 38dvh, 240px); max-height: clamp(145px, 38dvh, 240px); }
   .mpcOnly, .trackEditor.fixedPadEditor { min-height: 160px; }
 }
+
+
+/* v17: hard layout fix - sequencer + bottom pad/editor slot */
+.playPage {
+  display: flex !important;
+  flex-direction: column !important;
+  height: calc(100dvh - 70px) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.performanceArea {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.performanceArea .playSequencer {
+  flex: 0 0 45% !important;
+  height: auto !important;
+  min-height: 150px !important;
+  max-height: 45% !important;
+  overflow: hidden !important;
+}
+
+.bottomArea {
+  flex: 1 1 55%;
+  min-height: 210px;
+  overflow: hidden;
+  display: flex;
+}
+
+.bottomArea .mpcOnly,
+.bottomArea .trackEditor.fixedPadEditor {
+  width: 100%;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  flex: 1 1 auto !important;
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.bottomArea .mpcOnly {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+}
+
+.bottomArea .mpcPad {
+  min-height: 0 !important;
+  display: flex !important;
+}
+
+@media (max-height: 720px) {
+  .performanceArea .playSequencer {
+    flex-basis: 40% !important;
+    max-height: 40% !important;
+    min-height: 132px !important;
+  }
+
+  .bottomArea {
+    min-height: 170px;
+  }
+}

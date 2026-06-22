@@ -347,9 +347,30 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
 
 function MpcPads({ pads, selectedPad, setSelectedPad, onPad, velocity }) {
   return <section className="mpcOnly">
-    {pads.map((pad, i)=><button key={i} className={`mpcPad ${pad.color} ${selectedPad===i?'selected':''}`} onPointerDown={(e)=>{e.preventDefault(); setSelectedPad(i); onPad(i, velocity);}}>
-      <span>{i+1}</span><b>{pad.short.split('\n').map((line, idx)=><React.Fragment key={line+idx}>{line}{idx===0 && <br/>}</React.Fragment>)}</b>
-    </button>)}
+    {pads.map((pad, i) => {
+      const labelLines = String(pad.short || pad.label || `PAD ${i + 1}`).split('\n');
+      return (
+        <button
+          key={i}
+          className={`mpcPad ${pad.color || 'gray'} ${selectedPad === i ? 'selected' : ''}`}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            setSelectedPad(i);
+            onPad(i, velocity);
+          }}
+        >
+          <span>{i + 1}</span>
+          <b>
+            {labelLines.map((line, idx) => (
+              <React.Fragment key={`${line}-${idx}`}>
+                {line}
+                {idx < labelLines.length - 1 && <br />}
+              </React.Fragment>
+            ))}
+          </b>
+        </button>
+      );
+    })}
   </section>
 }
 
@@ -381,11 +402,25 @@ function TrackEditor({ padIndex, pads, setPads, onClose, onPreview }) {
 }
 
 function PlayPage(props) {
-  return <div className="playPage">
-    <MiniTransport {...props.transport}/>
-    <Sequencer {...props.sequencer}/>
-    {props.editor.editingPad !== null ? <TrackEditor {...props.editor}/> : <MpcPads {...props.pads}/>}
-  </div>
+  const editorOpen = props.editor.padIndex !== null;
+
+  return (
+    <div className="playPage">
+      <MiniTransport {...props.transport} />
+
+      <div className="performanceArea">
+        <Sequencer {...props.sequencer} />
+
+        <div className="bottomArea">
+          {editorOpen ? (
+            <TrackEditor {...props.editor} />
+          ) : (
+            <MpcPads {...props.pads} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function SamplesPage({ pads, setPads, selectedPad, setSelectedPad }) {
