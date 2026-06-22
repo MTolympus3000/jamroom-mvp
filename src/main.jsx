@@ -218,7 +218,19 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
   const rowsRef = useRef(null);
   const touchScrollRef = useRef({ active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0, moved: false });
   const gestureGuardUntilRef = useRef(0);
-  const firstTouchRef = useRef(null);
+  const holdPanRef = useRef({
+    timer: null,
+    active: false,
+    pointerId: null,
+    row: null,
+    col: null,
+    startX: 0,
+    startY: 0,
+    startLeft: 0,
+    startTop: 0,
+    movedBeforeHold: false,
+  });
+  const [isHoldPanning, setIsHoldPanning] = useState(false);
   const [viewport, setViewport] = useState({ left: 0, top: 0, width: 1, height: 1 });
 
   const updateViewport = () => {
@@ -246,63 +258,25 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
     }
   }, [currentStep, followPlayhead, loopBars, gridTicks]);
 
-  const avgTouchX = (touches) => (touches[0].clientX + touches[1].clientX) / 2;
-  const avgTouchY = (touches) => (touches[0].clientY + touches[1].clientY) / 2;
-
-  const onGridTouchStart = (event) => {
-    if (event.touches.length === 1) {
-      const t = event.touches[0];
-      firstTouchRef.current = { x: t.clientX, y: t.clientY, time: Date.now() };
-      return;
-    }
-    if (event.touches.length >= 2 && rowsRef.current) {
-      gestureGuardUntilRef.current = Date.now() + 90;
-      touchScrollRef.current = {
-        active: true,
-        moved: false,
-        startX: avgTouchX(event.touches),
-        startY: avgTouchY(event.touches),
-        startLeft: rowsRef.current.scrollLeft,
-        startTop: rowsRef.current.scrollTop,
-      };
-      event.preventDefault();
-    }
+  const clearHoldPan = () => {
+    const state = holdPanRef.current;
+    if (state.timer) clearTimeout(state.timer);
+    holdPanRef.current = {
+      timer: null,
+      active: false,
+      pointerId: null,
+      row: null,
+      col: null,
+      startX: 0,
+      startY: 0,
+      startLeft: 0,
+      startTop: 0,
+      movedBeforeHold: false,
+    };
+    setIsHoldPanning(false);
   };
 
-  const onGridTouchMove = (event) => {
-    const el = rowsRef.current;
-    if (!el) return;
-    if (event.touches.length >= 2) {
-      if (!touchScrollRef.current.active) {
-        touchScrollRef.current = {
-          active: true,
-          moved: false,
-          startX: avgTouchX(event.touches),
-          startY: avgTouchY(event.touches),
-          startLeft: el.scrollLeft,
-          startTop: el.scrollTop,
-        };
-      }
-      const deltaX = avgTouchX(event.touches) - touchScrollRef.current.startX;
-      const deltaY = avgTouchY(event.touches) - touchScrollRef.current.startY;
-      if (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6) touchScrollRef.current.moved = true;
-      el.scrollLeft = touchScrollRef.current.startLeft - deltaX;
-      el.scrollTop = touchScrollRef.current.startTop - deltaY;
-      updateViewport();
-      gestureGuardUntilRef.current = Date.now() + 90;
-      event.preventDefault();
-      return;
-    }
-    if (event.touches.length === 1) event.preventDefault();
-  };
-
-  const onGridTouchEnd = (event) => {
-    if (!event.touches || event.touches.length < 2) {
-      const wasPanning = touchScrollRef.current.active && touchScrollRef.current.moved;
-      touchScrollRef.current.active = false;
-      if (wasPanning) gestureGuardUntilRef.current = Date.now() + 120;
-    }
-  };
+  useEffect(() => () => clearHoldPan(), []);
 
   const toggleGridCell = (r, cellIndex) => {
     const rawTick = Math.min(totalTicks - 1, cellIndex * gridTicks);
@@ -310,12 +284,75 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
     setPatternLive(prev => prev.map((row, ri) => ri === r ? row.map((v, ci) => ci === tick ? (v ? 0 : 100) : v) : row));
   };
 
-  const queueGridToggle = (event, r, c) => {
+  const beginGridPress = (event, r, c) => {
     event.preventDefault();
-    if (touchScrollRef.current.active || Date.now() < gestureGuardUntilRef.current) return;
-    // Performance pass: one-finger note entry is instant again. Two-finger panning
-    // is protected by the gesture guard and movement threshold above.
-    toggleGridCell(r, c);
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    if (Date.now() < gestureGuardUntilRef.current) return;
+
+    const el = rowsRef.current;
+    if (!el) return;
+
+    clearHoldPan();
+
+    holdPanRef.current = {
+      timer: null,
+      active: false,
+      pointerId: event.pointerId,
+      row: r,
+      col: c,
+      startX: event.clientX,
+      startY: event.clientY,
+      startLeft: el.scrollLeft,
+      startTop: el.scrollTop,
+      movedBeforeHold: false,
+    };
+
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+
+    holdPanRef.current.timer = setTimeout(() => {
+      const state = holdPanRef.current;
+      if (state.pointerId !== event.pointerId || state.movedBeforeHold) return;
+      state.active = true;
+      gestureGuardUntilRef.current = Date.now() + 120;
+      setIsHoldPanning(true);
+    }, 500);
+  };
+
+  const moveGridPress = (event) => {
+    const state = holdPanRef.current;
+    const el = rowsRef.current;
+    if (!el || state.pointerId !== event.pointerId) return;
+
+    const dx = event.clientX - state.startX;
+    const dy = event.clientY - state.startY;
+    const movedEnough = Math.abs(dx) > 7 || Math.abs(dy) > 7;
+
+    if (!state.active) {
+      if (movedEnough) state.movedBeforeHold = true;
+      event.preventDefault();
+      return;
+    }
+
+    el.scrollLeft = state.startLeft - dx;
+    el.scrollTop = state.startTop - dy;
+    updateViewport();
+    gestureGuardUntilRef.current = Date.now() + 120;
+    event.preventDefault();
+  };
+
+  const endGridPress = (event) => {
+    const state = holdPanRef.current;
+    if (state.pointerId !== event.pointerId) return;
+
+    const shouldToggle = !state.active && !state.movedBeforeHold;
+    const row = state.row;
+    const col = state.col;
+    clearHoldPan();
+
+    if (shouldToggle && row !== null && col !== null) {
+      toggleGridCell(row, col);
+    }
+    event.preventDefault();
   };
 
   const displayHit = (row, cellIndex) => row[Math.min(totalTicks - 1, cellIndex * gridTicks)] || 0;
@@ -326,9 +363,9 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
   const visibleColumns = Array.from({ length: Math.max(0, endCol - startCol) }, (_, i) => startCol + i);
 
   return <section className="playSequencer">
-    <div className="seqHeader"><span>SEQUENCER</span><small>{gridResolution} beat · snap {snapToGrid?'on':'off'}</small></div>
+    <div className="seqHeader"><span>SEQUENCER</span><small>{gridResolution} beat · snap {snapToGrid?'on':'off'} · hold 0.5s to pan</small></div>
     <div className="barNumbers">{Array.from({length: loopBars}, (_, i)=><span key={i} style={{left:`${(i/loopBars)*100}%`}}>{i+1}</span>)}</div>
-    <div className="seqRows" ref={rowsRef} onScroll={updateViewport} onTouchStart={onGridTouchStart} onTouchMove={onGridTouchMove} onTouchEnd={onGridTouchEnd} onTouchCancel={onGridTouchEnd}>
+    <div className={`seqRows ${isHoldPanning ? 'holdPanning' : ''}`} ref={rowsRef} onScroll={updateViewport}>
       {pads.map((pad, r) => <div className="seqRow" key={r}>
         <button className={`rowName ${muted[r]?'muted':''} ${editingPad===r?'editing':''}`} onClick={()=>onEditPad(r)}><i className={pad.color}></i><b>{r+1}</b><span>{pad.label}</span></button>
         <div className="stepGridVirtual" style={{width:`${columns * STEP_CELL_WIDTH}px`}}>
@@ -336,7 +373,7 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
             {visibleColumns.map((c) => {
               const tick = c * gridTicks;
               const now = currentCol === c;
-              return <button key={c} onPointerDown={(e)=>queueGridToggle(e,r,c)} className={`step ${displayHit(pattern[r] || [], c) ? 'hit' : ''} ${now?'now':''} ${tick % 24 === 0?'beat':''} ${tick % TICKS_PER_BAR === 0?'barStep':''}`}></button>
+              return <button key={c} onPointerDown={(e)=>beginGridPress(e,r,c)} onPointerMove={moveGridPress} onPointerUp={endGridPress} onPointerCancel={endGridPress} className={`step ${displayHit(pattern[r] || [], c) ? 'hit' : ''} ${now?'now':''} ${tick % 24 === 0?'beat':''} ${tick % TICKS_PER_BAR === 0?'barStep':''}`}></button>
             })}
           </div>
         </div>
@@ -347,30 +384,9 @@ function Sequencer({ pads, pattern, setPatternLive, currentStep, loopBars, gridR
 
 function MpcPads({ pads, selectedPad, setSelectedPad, onPad, velocity }) {
   return <section className="mpcOnly">
-    {pads.map((pad, i) => {
-      const labelLines = String(pad.short || pad.label || `PAD ${i + 1}`).split('\n');
-      return (
-        <button
-          key={i}
-          className={`mpcPad ${pad.color || 'gray'} ${selectedPad === i ? 'selected' : ''}`}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            setSelectedPad(i);
-            onPad(i, velocity);
-          }}
-        >
-          <span>{i + 1}</span>
-          <b>
-            {labelLines.map((line, idx) => (
-              <React.Fragment key={`${line}-${idx}`}>
-                {line}
-                {idx < labelLines.length - 1 && <br />}
-              </React.Fragment>
-            ))}
-          </b>
-        </button>
-      );
-    })}
+    {pads.map((pad, i)=><button key={i} className={`mpcPad ${pad.color} ${selectedPad===i?'selected':''}`} onPointerDown={(e)=>{e.preventDefault(); setSelectedPad(i); onPad(i, velocity);}}>
+      <span>{i+1}</span><b>{pad.short.split('\n').map((line, idx)=><React.Fragment key={line+idx}>{line}{idx===0 && <br/>}</React.Fragment>)}</b>
+    </button>)}
   </section>
 }
 
@@ -402,25 +418,11 @@ function TrackEditor({ padIndex, pads, setPads, onClose, onPreview }) {
 }
 
 function PlayPage(props) {
-  const editorOpen = props.editor.padIndex !== null;
-
-  return (
-    <div className="playPage">
-      <MiniTransport {...props.transport} />
-
-      <div className="performanceArea">
-        <Sequencer {...props.sequencer} />
-
-        <div className="bottomArea">
-          {editorOpen ? (
-            <TrackEditor {...props.editor} />
-          ) : (
-            <MpcPads {...props.pads} />
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  return <div className="playPage">
+    <MiniTransport {...props.transport}/>
+    <Sequencer {...props.sequencer}/>
+    {props.editor.editingPad !== null ? <TrackEditor {...props.editor}/> : <MpcPads {...props.pads}/>}
+  </div>
 }
 
 function SamplesPage({ pads, setPads, selectedPad, setSelectedPad }) {
