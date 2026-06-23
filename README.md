@@ -1,64 +1,37 @@
-# JamRoom Drum v8 — Two-Finger Pan
+# JamRoom MVP
 
-Focused MPC-style drum machine.
+A first web MVP for a collaborative loop/jam app.
 
-## Added in v8
-- Two-finger sequencer pan now moves horizontally and vertically.
-- One-finger tap still adds/removes MIDI notes.
-- One-finger pad play stays locked and does not move the screen.
-- Follow Playhead remains available in Settings.
+## Features included
 
-## Prior features retained
-- Low latency pad engine
-- Count-in capture
-- Snap-to-grid for mouse notes and recorded hits
-- Grid options: 1/4, 1/8, 1/16, 1/32
-- MPC 4x4 pads only
-- Factory Southside kit
+- Jam project settings: title, BPM, bars, key, chord mode
+- Audio recorder for voice/humming/beatbox layers
+- One-finger chord player
+- Diatonic 7th chords in the selected key
+- Piano-roll style note viewer/editor
+- Quantize button
+- Copy first 2 bars to full loop
+- Drum step sequencer
+- Copy 2-bar drum pattern across the loop
 
-## Run
+## Run locally
+
 ```bash
 npm install
 npm run dev
 ```
 
-## Build
-```bash
-npm run build
-```
+Then open the local URL shown by Vite.
+
+## Next build steps
+
+1. Add real drag-and-drop note editing.
+2. Add proper transport playback with metronome.
+3. Add Supabase login, project saving, and invite links.
+4. Upload audio recordings to Supabase Storage.
+5. Add friend collaboration and comments.
 
 
-## v9 Two-Finger Guard Update
+## Save Project Update
 
-- Removed the sequencer scrollbar.
-- Sequencer navigation is now two-finger pan only.
-- Two-finger pan moves horizontally through time and vertically through drum rows.
-- One-finger tap still adds/removes notes.
-- Touch note entry is delayed briefly so a second finger can join without accidentally creating notes.
-- Any pending note tap is cancelled the moment two-finger pan starts.
-
-## v10 Polyphony + Choke Groups
-
-- Polyphony setting: 16, 32, or 64 voices
-- Voice stealing: when the limit is reached, the oldest voice is stopped
-- Voice meter in Settings
-- Per-pad choke group setting in Samples
-- Default choke groups:
-  - Group 1: closed/open hats
-  - Group 2: 808 pads
-
-
-## v12 Performance Pass
-- Virtualized sequencer grid rendering for longer patterns.
-- RequestAnimationFrame playhead UI updates.
-- Instant one-finger note entry.
-- Two-finger pan remains protected with a movement threshold.
-- 32-voice default polyphony remains enabled.
-- Follow playhead remains available in Settings.
-
-
-## v16 Pad Visibility Fix
-- Replaced fragile grid height layout with fixed flex slots.
-- Sequencer has a fixed visible height.
-- MPC pads/editor always occupy the bottom performance slot.
-- Pads no longer disappear into a black empty area.
+This version adds local Save/Load, autosave, Export JSON, Import JSON, and New Project. Audio recordings created as browser blob URLs are not permanently stored in JSON yet, but project settings, chords, piano-roll notes, and drum patterns are saved.
