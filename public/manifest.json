@@ -1,0 +1,9 @@
+{
+  "name": "Pangea",
+  "short_name": "Pangea",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#08070d",
+  "theme_color": "#08070d"
+}

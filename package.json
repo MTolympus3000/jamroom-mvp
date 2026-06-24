@@ -1,15 +1,13 @@
 {
+  "name": "pangea",
+  "version": "2.3.0",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "dev": "node server.js",
+    "build": "node build.js",
+    "preview": "node server.js dist 4173"
   },
-  "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "lucide-react": "latest"
-  },
+  "dependencies": {},
   "devDependencies": {}
 }

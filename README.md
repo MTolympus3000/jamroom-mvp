@@ -1,37 +1,31 @@
-# JamRoom MVP
+# Pangea Phase 30 — Performance Mode + Universal Edit Grid
 
-A first web MVP for a collaborative loop/jam app.
+This build changes Pangea into a pad-first, play-by-feel workflow.
 
-## Features included
+## Added
+- Main instrument pages are performance-first: large pads are the focus.
+- Visible sequencer grids are removed from Drums, Chords, Melody, and Slicer main pages.
+- Each instrument/layer has its own Snap selector.
+- Snap options include Bar, 1/2 bar, beat values, triplets, 1/64, and Off.
+- Chords and Melody share the same global key/scale settings.
+- Pads light up during loop playback when their events are triggered.
+- Erase mode: turn Erase on and hold a pad while the loop passes to remove events from that layer.
+- Visible Undo button in the transport.
+- One universal full-page Edit Grid.
+- Edit Grid opens for the current instrument and current layer only.
+- Edit Grid uses horizontal and vertical scrollbars; no two-finger scroll is required.
 
-- Jam project settings: title, BPM, bars, key, chord mode
-- Audio recorder for voice/humming/beatbox layers
-- One-finger chord player
-- Diatonic 7th chords in the selected key
-- Piano-roll style note viewer/editor
-- Quantize button
-- Copy first 2 bars to full loop
-- Drum step sequencer
-- Copy 2-bar drum pattern across the loop
+## Workflow
+1. Pick instrument.
+2. Pick layer.
+3. Pick Snap value.
+4. Record by playing pads.
+5. Use Erase or Undo to fix mistakes.
+6. Tap Edit for detailed grid editing only when needed.
 
-## Run locally
+## Netlify
+Build command: `npm run build`
+Publish directory: `dist`
 
-```bash
-npm install
-npm run dev
-```
-
-Then open the local URL shown by Vite.
-
-## Next build steps
-
-1. Add real drag-and-drop note editing.
-2. Add proper transport playback with metronome.
-3. Add Supabase login, project saving, and invite links.
-4. Upload audio recordings to Supabase Storage.
-5. Add friend collaboration and comments.
-
-
-## Save Project Update
-
-This version adds local Save/Load, autosave, Export JSON, Import JSON, and New Project. Audio recordings created as browser blob URLs are not permanently stored in JSON yet, but project settings, chords, piano-roll notes, and drum patterns are saved.
+## Commit message
+`Add performance mode and universal edit grid`
